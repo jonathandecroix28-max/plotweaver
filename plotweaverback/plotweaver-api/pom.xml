@@ -73,6 +73,18 @@
 	<build>
 		<plugins>
 			<plugin>
+            <groupId>com.diffplug.spotless</groupId>
+            <artifactId>spotless-maven-plugin</artifactId>
+            <version>2.43.0</version>
+            <configuration>
+                <java>
+                    <trimTrailingWhitespace/>
+                    <endWithNewline/>
+                    <googleJavaFormat/>
+                </java>
+            </configuration>
+        	</plugin>
+			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
