@@ -21,7 +21,7 @@ public class Category {
     @Column(nullable = false)
     private String name;
 
-    @Column(optional = true)
+    @Column(length = 15)
     private String color;
 
     @ManyToOne(fetch = FetchType.LAZY)
