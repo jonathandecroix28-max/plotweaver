@@ -41,6 +41,14 @@ public class BookController {
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
+    @GetMapping("/title/{title}")
+    @Tag(name = "Get Book by Title", description = "Récupère un livre par son titre")
+    public ResponseEntity<Book> getBookByTitle(@PathVariable String title) {
+        return bookService.getBookByTitle(title)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
+
     @PostMapping
     @Tag(name = "Create Book", description = "Crée un nouveau livre")
     public ResponseEntity<Book> createBook(@RequestBody Book book) {
