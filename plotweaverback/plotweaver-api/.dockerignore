@@ -1,0 +1,6 @@
+target
+.mvn
+.git
+.env
+.DS_Store
+*.log
