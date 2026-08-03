@@ -2,6 +2,7 @@ package com.plotweaver.plotweaver_api.modules.chapter;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.plotweaver.plotweaver_api.modules.book.Book;
 
 import jakarta.persistence.Column;
@@ -21,7 +22,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-
 @Entity
 @Table(name = "chapters")
 @Getter
@@ -30,6 +30,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class Chapter {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -45,19 +46,21 @@ public class Chapter {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "book_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "description"})
     private Book book;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
 
     @PreUpdate
     protected void onUpdate() {
