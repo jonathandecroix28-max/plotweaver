@@ -1,23 +1,27 @@
 package com.plotweaver.plotweaver_api.modules.book;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.plotweaver.plotweaver_api.modules.chapter.Chapter;
+
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-
 
 @Entity
 @Table(name = "books")
@@ -30,33 +34,41 @@ public class Book {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Schema(description = "Identifiant unique du livre", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
 
     @Column(nullable = false, unique = true)
-    @Schema(description = "Titre du livre", example = "Mon Premier Roman")
     private String title;
 
-    @Column(length = 1000)
-    @Schema(description = "Description du livre", example = "Ceci est une description de mon premier roman.")
+    @Column(name = "book_description", length = 1000)
     private String description;
 
     @Column(nullable = false, updatable = false)
-    @Schema(description = "Date de création du livre", example = "2024-01-01T12:00:00", accessMode = Schema.AccessMode.READ_ONLY)
     private LocalDateTime createdAt;
+
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "book"})
+    private List<Chapter> chapters;
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
     }
-
-    @Column(nullable = false)
-    @Schema(description = "Date de dernière mise à jour du livre", example = "2024-01-01T12:00:00", accessMode = Schema.AccessMode.READ_ONLY)
-    private LocalDateTime updatedAt;
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    @Transient
+    public int getChapterCount() {
+        if (this.chapters != null) {
+            return this.chapters.size();
+        }
+        return 0;
     }
 }
