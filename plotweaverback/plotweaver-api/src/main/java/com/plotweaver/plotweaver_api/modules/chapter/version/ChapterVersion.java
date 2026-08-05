@@ -1,4 +1,4 @@
-package com.plotweaver.plotweaver_api.modules.version;
+package com.plotweaver.plotweaver_api.modules.chapter.version;
 
 import java.time.LocalDateTime;
 
