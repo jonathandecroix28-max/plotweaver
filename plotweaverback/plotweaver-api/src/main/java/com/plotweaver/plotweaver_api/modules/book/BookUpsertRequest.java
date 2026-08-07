@@ -1,5 +1,7 @@
 package com.plotweaver.plotweaver_api.modules.book;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,4 +18,8 @@ public class BookUpsertRequest {
 
     @Schema(description = "Description du livre", example = "Roman fantasy en cours d'ecriture")
     private String description;
+
+    @Schema(description = "Image de couverture du livre", example = "https://example.com/cover.jpg")
+    @JsonAlias({"cover_image", "coverImage"})
+    private String coverImage;
 }

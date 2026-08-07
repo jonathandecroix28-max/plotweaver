@@ -2,6 +2,7 @@ package com.plotweaver.plotweaver_api.modules.chapter.version;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.plotweaver.plotweaver_api.modules.chapter.Chapter;
 
 import jakarta.persistence.Column;
@@ -39,8 +40,13 @@ public class ChapterVersion {
     @Column(nullable = false)
     private Integer versionNumber;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {
@@ -51,9 +57,6 @@ public class ChapterVersion {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "chapter_id", nullable = false)
     private Chapter chapter;
-
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
 
     @PreUpdate
     protected void onUpdate() {

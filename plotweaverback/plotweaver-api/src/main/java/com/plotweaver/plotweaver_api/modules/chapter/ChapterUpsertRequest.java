@@ -1,5 +1,8 @@
 package com.plotweaver.plotweaver_api.modules.chapter;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -8,6 +11,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @Schema(name = "ChapterUpsertRequest", description = "Payload de creation ou mise a jour d'un chapitre")
 public class ChapterUpsertRequest {
 

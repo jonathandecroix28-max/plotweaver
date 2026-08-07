@@ -2,6 +2,7 @@ package com.plotweaver.plotweaver_api.modules.chapter;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.plotweaver.plotweaver_api.modules.book.Book;
 
@@ -49,9 +50,11 @@ public class Chapter {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "description"})
     private Book book;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 

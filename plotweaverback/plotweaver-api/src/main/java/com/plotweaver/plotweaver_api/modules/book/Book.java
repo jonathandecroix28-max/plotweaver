@@ -3,6 +3,7 @@ package com.plotweaver.plotweaver_api.modules.book;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.plotweaver.plotweaver_api.modules.chapter.Chapter;
 
@@ -42,9 +43,14 @@ public class Book {
     @Column(name = "book_description", length = 1000)
     private String description;
 
+    @Column(name = "cover_image")
+    private String coverImage;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
