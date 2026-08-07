@@ -10,7 +10,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.plotweaver.plotweaver_api.modules.book.Book;
 import com.plotweaver.plotweaver_api.modules.book.BookRepository;
-
+import com.plotweaver.plotweaver_api.security.HtmlSanitizerService; 
 
 @Service
 public class ChapterService {
@@ -20,10 +20,14 @@ public class ChapterService {
 
     private final ChapterRepository chapterRepository;
     private final BookRepository bookRepository;
+    private final HtmlSanitizerService htmlSanitizerService; 
 
-    public ChapterService(ChapterRepository chapterRepository, BookRepository bookRepository) {
+    public ChapterService(ChapterRepository chapterRepository, 
+                          BookRepository bookRepository, 
+                          HtmlSanitizerService htmlSanitizerService) {
         this.chapterRepository = chapterRepository;
         this.bookRepository = bookRepository;
+        this.htmlSanitizerService = htmlSanitizerService;
     }
 
     public List<Chapter> getAllChapters() {
@@ -169,7 +173,9 @@ public class ChapterService {
             return null;
         }
 
-        String normalizedContent = content.trim();
+        String sanitizedContent = htmlSanitizerService.sanitize(content);
+
+        String normalizedContent = sanitizedContent.trim();
         if (normalizedContent.length() > MAX_CONTENT_LENGTH) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Le contenu du chapitre ne peut pas depasser " + MAX_CONTENT_LENGTH + " caracteres");
