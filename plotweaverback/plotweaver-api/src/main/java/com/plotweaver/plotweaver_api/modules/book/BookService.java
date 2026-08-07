@@ -8,12 +8,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-
 @Service
 public class BookService {
 
     private static final int MAX_TITLE_LENGTH = 255;
     private static final int MAX_DESCRIPTION_LENGTH = 1_000;
+    private static final int MAX_COVER_URL_LENGTH = 1_000; // Si c'est une URL ou un chemin
 
     private final BookRepository bookRepository;
 
@@ -40,7 +40,7 @@ public class BookService {
     }
 
     public Book createBook(BookUpsertRequest request) {
-        BookUpsertRequest validRequest = validateAndNormalizeRequest(request);
+        BookUpsertRequest validRequest = validateAndNormalizeRequest(request, true); // true = création (titre obligatoire)
 
         if (bookRepository.existsByTitle(validRequest.getTitle())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Un livre avec ce titre existe deja");
@@ -49,6 +49,7 @@ public class BookService {
         Book book = Book.builder()
                 .title(validRequest.getTitle())
                 .description(validRequest.getDescription())
+                .coverImage(validRequest.getCoverImage()) // <-- Ajout de la cover
                 .build();
 
         return bookRepository.save(book);
@@ -59,14 +60,23 @@ public class BookService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Livre introuvable");
         }
 
-        BookUpsertRequest validRequest = validateAndNormalizeRequest(request);
-        boolean changingTitle = !book.getTitle().equals(validRequest.getTitle());
-        if (changingTitle && bookRepository.existsByTitle(validRequest.getTitle())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Un autre livre avec ce titre existe deja");
+        BookUpsertRequest validRequest = validateAndNormalizeRequest(request, false); 
+
+        if (validRequest.getTitle() != null) {
+            boolean changingTitle = !book.getTitle().equals(validRequest.getTitle());
+            if (changingTitle && bookRepository.existsByTitle(validRequest.getTitle())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Un autre livre avec ce titre existe deja");
+            }
+            book.setTitle(validRequest.getTitle());
         }
 
-        book.setTitle(validRequest.getTitle());
-        book.setDescription(validRequest.getDescription());
+        if (validRequest.getDescription() != null) {
+            book.setDescription(validRequest.getDescription());
+        }
+
+        if (validRequest.getCoverImage() != null) {
+            book.setCoverImage(validRequest.getCoverImage()); // <-- Mise à jour de la cover
+        }
 
         return bookRepository.save(book);
     }
@@ -83,6 +93,7 @@ public class BookService {
                 .id(book.getId())
                 .title(book.getTitle())
                 .description(book.getDescription())
+                .coverImage(book.getCoverImage()) // <-- Mappé dans la réponse vers le front
                 .createdAt(book.getCreatedAt())
                 .updatedAt(book.getUpdatedAt())
                 .chapterCount(book.getChapterCount())
@@ -95,16 +106,23 @@ public class BookService {
                 .collect(Collectors.toList());
     }
 
-    private BookUpsertRequest validateAndNormalizeRequest(BookUpsertRequest request) {
+    private BookUpsertRequest validateAndNormalizeRequest(BookUpsertRequest request, boolean isCreation) {
         if (request == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le payload est obligatoire");
         }
 
-        String normalizedTitle = normalizeTitle(request.getTitle());
-        String normalizedDescription = normalizeDescription(request.getDescription());
+        if (isCreation || request.getTitle() != null) {
+            request.setTitle(normalizeTitle(request.getTitle()));
+        }
 
-        request.setTitle(normalizedTitle);
-        request.setDescription(normalizedDescription);
+        if (request.getDescription() != null) {
+            request.setDescription(normalizeDescription(request.getDescription()));
+        }
+
+        if (request.getCoverImage() != null) {
+            request.setCoverImage(normalizeCoverImage(request.getCoverImage()));
+        }
+
         return request;
     }
 
@@ -123,17 +141,21 @@ public class BookService {
     }
 
     private String normalizeDescription(String description) {
-        if (description == null) {
-            return null;
-        }
-
         String normalizedDescription = description.trim();
         if (normalizedDescription.length() > MAX_DESCRIPTION_LENGTH) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "La description ne peut pas depasser " + MAX_DESCRIPTION_LENGTH + " caracteres");
         }
-
         return normalizedDescription;
+    }
+
+    private String normalizeCoverImage(String coverImage) {
+        String normalizedCover = coverImage.trim();
+        if (normalizedCover.length() > MAX_COVER_URL_LENGTH) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "L'URL ou le chemin de la couverture ne peut pas depasser " + MAX_COVER_URL_LENGTH + " caracteres");
+        }
+        return normalizedCover.isEmpty() ? null : normalizedCover;
     }
 
     private void requirePositiveId(Long id, String fieldName) {
