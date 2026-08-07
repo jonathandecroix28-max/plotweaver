@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* Configuration de base cohérente avec Tailwind v4 */
 :root {
