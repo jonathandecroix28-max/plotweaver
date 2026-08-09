@@ -1,10 +1,11 @@
-import { useState } from 'react'; 
+import { useState, useEffect } from 'react'; 
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBook } from '../hooks/useBook'; 
 import { useChapters } from '../../chapters/hooks/useChapter';
 import { ChapterModal } from '../../chapters/components/ChapterModal'; 
 import { formatDate } from '../../../utils/dateFormatter';
 import { offlineChapterService } from '../../../services/offlineChapterService'; 
+import { BookEditModal } from '../components/BookEditModal';
 
 export function BookDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -12,11 +13,19 @@ export function BookDetailPage() {
   
   const bookId = id ? Number(id) : null;
 
-  const { book, isLoading: isBookLoading, error } = useBook(bookId!);
+
+  const { book, refreshBook, isLoading: isBookLoading, error } = useBook(bookId!);
   const { chapters, isLoadingChapters, setChapters } = useChapters(bookId); 
   const [isChapterModalOpen, setIsChapterModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const loading = isBookLoading || isLoadingChapters;
+
+  useEffect(() => {
+    if (!loading && (error || !book)) {
+      navigate('/404', { replace: true });
+    }
+  }, [loading, error, book, navigate]);
 
   const handleDeleteChapter = async (chapterId: number, e: React.MouseEvent) => {
     e.stopPropagation(); 
@@ -41,17 +50,7 @@ export function BookDetailPage() {
   }
 
   if (error || !book) {
-    return (
-      <div className="flex flex-col justify-center items-center h-screen bg-[#fcf9f2] gap-4">
-        <p className="text-red-700 font-serif font-medium">{error || "Livre introuvable."}</p>
-        <button 
-          onClick={() => navigate('/')}
-          className="text-amber-900 underline font-serif text-sm cursor-pointer hover:text-amber-950 transition-colors"
-        >
-          &larr; Retour à la bibliothèque
-        </button>
-      </div>
-    );
+    return null; 
   }
 
   const sortedChapters = [...chapters].sort((a, b) => a.chapter_number - b.chapter_number);
@@ -112,7 +111,7 @@ export function BookDetailPage() {
             </button>
 
             <button 
-              onClick={() => alert("Édition du livre à venir !")}
+              onClick={() => setIsEditModalOpen(true)}
               className="bg-transparent hover:bg-amber-950/5 text-amber-900/70 hover:text-amber-950 font-sans font-medium px-4 py-2.5 rounded-xl transition text-sm cursor-pointer ml-auto"
             >
               Paramètres du roman
@@ -204,6 +203,15 @@ export function BookDetailPage() {
         bookId={book.id}
         nextChapterNumber={chapters.length + 1}
         onChapterCreated={(newChapters) => setChapters(newChapters)}
+      />
+
+      <BookEditModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        book={book}
+        onBookUpdated={(_updatedBooksList) => {
+          refreshBook();
+        }}
       />
     </div>
   );
