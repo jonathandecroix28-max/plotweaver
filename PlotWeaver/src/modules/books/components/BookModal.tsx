@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { offlineBookService } from '../../../services/offlineBookService';
+import { useState, useEffect } from 'react';
+import { useCreateBook } from '../hooks/useCreateBook';
 import type { BookResponse } from '../../../types/book';
 
 interface BookModalProps {
@@ -12,7 +12,16 @@ export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [coverImage, setCoverImage] = useState('');
-  const [loading, setLoading] = useState(false);
+
+  const { createBook, isCreating, error } = useCreateBook();
+
+  useEffect(() => {
+    if (!isOpen) {
+      setTitle('');
+      setDescription('');
+      setCoverImage('');
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -20,21 +29,13 @@ export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
     e.preventDefault();
     if (!title.trim()) return;
 
-    setLoading(true);
-    try {
-      const updatedBooks = await offlineBookService.create(title, description, coverImage);
-      
-      setTitle('');
-      setDescription('');
-      setCoverImage('');
-      
+    const updatedBooks = await createBook(title, description, coverImage);
+    
+    if (updatedBooks) {
       onBookCreated(updatedBooks); 
       onClose();
-    } catch (err) {
-      console.error(err);
-      alert("Erreur lors de la création du roman.");
-    } finally {
-      setLoading(false);
+    } else {
+      alert(error || "Erreur lors de la création du roman.");
     }
   };
 
@@ -104,10 +105,10 @@ export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
             </button>
             <button 
               type="submit"
-              disabled={loading}
+              disabled={isCreating}
               className="bg-amber-900 hover:bg-amber-950 text-amber-50 px-5 py-2 rounded-lg text-sm font-medium transition shadow-sm disabled:opacity-50 cursor-pointer"
             >
-              {loading ? "Création..." : "Poser la première pierre"}
+              {isCreating ? "Création..." : "Poser la première pierre"}
             </button>
           </div>
 
