@@ -3,6 +3,7 @@ import type { BookResponse } from '../types/book';
 
 const LOCAL_STORAGE_KEY = 'plotweaver_offline_books';
 const LOCAL_STORAGE_DELETED_KEY = 'plotweaver_deleted_books'; 
+const LOCAL_STORAGE_UPDATED_KEY = 'plotweaver_pending_updates';
 const CHAPTER_LOCAL_STORAGE_KEY = 'plotweaver_offline_chapters';
 
 export const offlineBookService = {
@@ -37,6 +38,24 @@ export const offlineBookService = {
     const pending = this.getPendingDeletions();
     if (!pending.includes(id)) {
       this.savePendingDeletions([...pending, id]);
+    }
+  },
+
+  getPendingUpdates(): number[] {
+    const localData = localStorage.getItem(LOCAL_STORAGE_UPDATED_KEY);
+    return localData ? JSON.parse(localData) : [];
+  },
+
+  savePendingUpdates(ids: number[]) {
+    localStorage.setItem(LOCAL_STORAGE_UPDATED_KEY, JSON.stringify(ids));
+  },
+
+  addPendingUpdate(id: number) {
+    if (id > 1000000000) return;
+
+    const pending = this.getPendingUpdates();
+    if (!pending.includes(id)) {
+      this.savePendingUpdates([...pending, id]);
     }
   },
 
@@ -133,6 +152,40 @@ export const offlineBookService = {
     return books;
   },
 
+  async update(id: number, title: string, description?: string, coverImage?: string): Promise<BookResponse[]> {
+    const books = this.getLocalBooks();
+    const bookIndex = books.findIndex(b => b.id === id);
+    
+    if (bookIndex === -1) {
+      throw new Error("Livre introuvable.");
+    }
+
+    const current = books[bookIndex];
+
+    const updatedBook: BookResponse = {
+      ...current,
+      title,
+      description,
+      coverImage,
+      updatedAt: new Date().toISOString()
+    };
+
+    books[bookIndex] = updatedBook;
+    this.saveLocalBooks(books);
+
+    try {
+      const serverUpdated = await bookService.update(id, { title, description, coverImage });
+      books[bookIndex] = serverUpdated;
+      this.saveLocalBooks(books);
+      return books;
+    } catch (err: any) {
+      console.log("Mise à jour enregistrée en local (serveur injoignable).");
+      this.addPendingUpdate(id); 
+    }
+
+    return books;
+  },
+
   async syncToServer(): Promise<void> {
     const pendingDeletions = this.getPendingDeletions();
     if (pendingDeletions.length > 0) {
@@ -149,6 +202,31 @@ export const offlineBookService = {
         }
       }
       this.savePendingDeletions(remainingDeletions);
+    }
+
+    const pendingUpdates = this.getPendingUpdates();
+    if (pendingUpdates.length > 0) {
+      const remainingUpdates: number[] = [];
+      const localBooks = this.getLocalBooks();
+
+      for (const id of pendingUpdates) {
+        const bookToUpdate = localBooks.find(b => b.id === id);
+        if (bookToUpdate) {
+          try {
+            const serverUpdated = await bookService.update(id, {
+              title: bookToUpdate.title,
+              description: bookToUpdate.description,
+              coverImage: bookToUpdate.coverImage
+            });
+            const currentBooks = this.getLocalBooks();
+            this.saveLocalBooks(currentBooks.map(b => b.id === id ? serverUpdated : b));
+          } catch (err) {
+            console.warn(`Serveur encore indisponible pour synchro la mise à jour du livre ${id}`);
+            remainingUpdates.push(id);
+          }
+        }
+      }
+      this.savePendingUpdates(remainingUpdates);
     }
 
     const books = this.getLocalBooks();
@@ -191,7 +269,7 @@ export const offlineBookService = {
               }
 
             } catch (err) {
-              console.warn(`Serveur encore indisponible pour synchroniser : ${book.title}`);
+              console.warn(`Serveur encore indisponible pour synchroniser la création : ${book.title}`);
               return; 
             }
           }
