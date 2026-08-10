@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useCreateBook } from '../hooks/useCreateBook';
+import { useCoverImage } from '../../../hooks/useCoverImage'; 
 import type { BookResponse } from '../../../types/book';
+import { fileService } from '../../../services/fileService';
 
 interface BookModalProps {
   isOpen: boolean;
@@ -11,8 +13,9 @@ interface BookModalProps {
 export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [coverImage, setCoverImage] = useState('');
-
+  const [isUploading, setIsUploading] = useState(false); // <--- Remonté ici en haut
+  
+  const { url: coverImage, setUrl: setCoverImage, error: urlError, validate } = useCoverImage('');
   const { createBook, isCreating, error } = useCreateBook();
 
   useEffect(() => {
@@ -21,13 +24,16 @@ export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
       setDescription('');
       setCoverImage('');
     }
-  }, [isOpen]);
+  }, [isOpen, setCoverImage]);
 
+  // Le return conditionnel doit être APRÈS tous les hooks
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+
+    if (!validate()) return;
 
     const updatedBooks = await createBook(title, description, coverImage);
     
@@ -36,6 +42,21 @@ export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
       onClose();
     } else {
       alert(error || "Erreur lors de la création du roman.");
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const url = await fileService.uploadCover(file);
+      setCoverImage(url);
+    } catch (err) {
+      alert("Erreur lors de l'upload de l'image.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -84,15 +105,32 @@ export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
 
           <div>
             <label className="block text-xs font-serif uppercase tracking-wider text-amber-900/70 mb-1">
-              URL de l'image de couverture (optionnel)
+              Image de couverture
             </label>
-            <input 
-              type="url" 
-              value={coverImage}
-              onChange={(e) => setCoverImage(e.target.value)}
-              placeholder="https://exemple.com/image.jpg"
-              className="w-full bg-[#fcf9f2] border border-amber-900/20 rounded-lg px-4 py-2.5 text-amber-950 placeholder-amber-900/30 focus:outline-none focus:ring-2 focus:ring-amber-900/40 font-sans text-sm"
-            />
+            
+            <div className="flex gap-2 items-center">
+              <input 
+                type="url" 
+                value={coverImage}
+                onChange={(e) => setCoverImage(e.target.value)}
+                placeholder="https://... ou uploadez un fichier"
+                className={`w-full bg-[#fcf9f2] border rounded-lg px-4 py-2.5 text-amber-950 placeholder-amber-900/30 focus:outline-none focus:ring-2 font-sans text-sm ${
+                  urlError ? 'border-red-500 ring-1 ring-red-500' : 'border-amber-900/20 focus:ring-amber-900/40'
+                }`}
+              />
+
+              <label className="bg-amber-100 hover:bg-amber-200 text-amber-900 px-4 py-2.5 rounded-lg text-xs font-medium transition cursor-pointer shrink-0 border border-amber-900/20 flex items-center gap-1">
+                {isUploading ? "Envoi..." : "Parcourir"}
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handleFileChange}
+                  disabled={isUploading}
+                />
+              </label>
+            </div>
+            {urlError && <p className="text-red-600 text-xs mt-1 font-sans">{urlError}</p>}
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-amber-900/10">
