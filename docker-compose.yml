@@ -20,7 +20,7 @@ services:
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
     volumes:
-      - ./plotweaverback/plotweaver-api:/workspace
+      - ./plotweaverback/plotweaver-api/uploads:/app/uploads
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://db:${MYSQL_PORT}/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
