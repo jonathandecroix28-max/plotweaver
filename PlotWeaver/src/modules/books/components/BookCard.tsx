@@ -8,6 +8,11 @@ interface BookCardProps {
 }
 
 export function BookCard({ book, onSelect, onDelete }: BookCardProps) {
+  
+  
+  const imageUrl = (book as any).cover_image || book.coverImage;
+  const createdDate = (book as any).created_at || book.createdAt;
+
   return (
     <div 
       onClick={() => onSelect && onSelect(book.id)}
@@ -30,9 +35,9 @@ export function BookCard({ book, onSelect, onDelete }: BookCardProps) {
       
       {/* Conteneur de l'image de couverture */}
       <div className="relative h-44 w-full bg-amber-950/3 overflow-hidden flex items-center justify-center border-b border-amber-900/10">
-        {book.coverImage ? (
+        {imageUrl ? (
           <img 
-            src={book.coverImage} 
+            src={imageUrl} 
             alt={`Couverture de ${book.title}`}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
@@ -63,7 +68,7 @@ export function BookCard({ book, onSelect, onDelete }: BookCardProps) {
         </div>
 
         <div className="pt-4 border-t border-amber-950/5 flex justify-between items-center text-xs text-amber-900/50">
-          <span className="font-serif italic">Créé le {formatDate(book.createdAt)}</span>
+          <span className="font-serif italic">Créé le {formatDate(createdDate)}</span>
           <span className="text-amber-900 font-sans font-medium group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
             Explorer &rarr;
           </span>

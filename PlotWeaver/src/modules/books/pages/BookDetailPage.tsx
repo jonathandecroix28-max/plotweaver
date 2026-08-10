@@ -55,6 +55,8 @@ export function BookDetailPage() {
 
   const sortedChapters = [...chapters].sort((a, b) => a.chapter_number - b.chapter_number);
   const firstChapter = sortedChapters.length > 0 ? sortedChapters[0] : null;
+  const bookCreatedAt = (book as any).created_at || book.createdAt;
+  const bookCoverImage = (book as any).cover_image || book.coverImage;
 
   return (
     <div className="min-h-screen bg-[#fcf9f2] text-[#2c221e] px-6 py-10 md:px-16 font-sans">
@@ -72,28 +74,44 @@ export function BookDetailPage() {
         <div className="bg-[#fffdf9] border border-amber-900/10 rounded-3xl p-8 md:p-10 shadow-xs mb-12 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-amber-900/5 rounded-bl-full pointer-events-none" />
           
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-            <div>
+          {/* Flex container pour intégrer l'image et le texte côte à côte */}
+          <div className="flex flex-col md:flex-row gap-8 items-start">
+            
+            {/* Vignette de la couverture */}
+            {bookCoverImage && (
+              <div className="w-full md:w-40 h-56 rounded-2xl overflow-hidden shadow-md border border-amber-900/15 shrink-0 bg-amber-950/5">
+                <img 
+                  src={bookCoverImage} 
+                  alt={`Couverture de ${book.title}`} 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+
+            {/* Informations textuelles */}
+            <div className="grow">
               <div className="flex items-center gap-3 mb-3">
                 <span className="bg-amber-100/80 text-amber-900 font-sans font-semibold px-3 py-1 rounded-full text-xs tracking-wide uppercase border border-amber-900/10">
                   {chapters.length} {chapters.length > 1 ? 'chapitres' : 'chapitre'}
                 </span>
                 <span className="text-xs text-amber-900/40 font-serif italic">
-                  Créé le {formatDate(book.createdAt)}
+                  Créé le {formatDate(bookCreatedAt)}
                 </span>
               </div>
-              <h1 className="text-4xl md:text-5xl font-serif font-bold text-amber-950 tracking-tight">
+              
+              <h1 className="text-4xl md:text-5xl font-serif font-bold text-amber-950 tracking-tight mb-4">
                 {book.title}
               </h1>
+
+              <p className="text-amber-900/80 text-lg leading-relaxed font-serif italic">
+                {book.description || "Aucune description fournie pour ce roman."}
+              </p>
             </div>
+
           </div>
 
-          <p className="text-amber-900/80 text-lg leading-relaxed font-serif max-w-2xl mb-8 italic">
-            {book.description || "Aucune description fournie pour ce roman."}
-          </p>
-
           {/* Barre d'actions globales du livre */}
-          <div className="flex flex-wrap items-center gap-3 pt-6 border-t border-amber-900/10">
+          <div className="flex flex-wrap items-center gap-3 pt-6 mt-8 border-t border-amber-900/10">
             {firstChapter && (
               <button 
                 onClick={() => navigate(`/books/${bookId}/chapters/${firstChapter.id}/read`)}
