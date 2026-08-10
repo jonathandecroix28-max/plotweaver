@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBook } from '../hooks/useBook'; 
 import { useChapters } from '../../chapters/hooks/useChapter';
+import { useDeleteChapter } from '../../chapters/hooks/useDeleteChapter';
 import { ChapterModal } from '../../chapters/components/ChapterModal'; 
 import { formatDate } from '../../../utils/dateFormatter';
-import { offlineChapterService } from '../../../services/offlineChapterService'; 
 import { BookEditModal } from '../components/BookEditModal';
 
 export function BookDetailPage() {
@@ -13,9 +13,12 @@ export function BookDetailPage() {
   
   const bookId = id ? Number(id) : null;
 
-
   const { book, refreshBook, isLoading: isBookLoading, error } = useBook(bookId!);
+  
   const { chapters, isLoadingChapters, setChapters } = useChapters(bookId); 
+  
+  const { deleteChapter } = useDeleteChapter();
+
   const [isChapterModalOpen, setIsChapterModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
@@ -32,11 +35,11 @@ export function BookDetailPage() {
     
     if (!confirm("Voulez-vous vraiment supprimer ce chapitre ?")) return;
 
-    try {
-      await offlineChapterService.remove(chapterId); 
+    const success = await deleteChapter(chapterId);
+    
+    if (success) {
       setChapters(chapters.filter(c => c.id !== chapterId));
-    } catch (err) {
-      console.error("Erreur lors de la suppression du chapitre :", err);
+    } else {
       alert("Impossible de supprimer le chapitre.");
     }
   };
