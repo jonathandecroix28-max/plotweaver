@@ -14,7 +14,7 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")
-                        .allowedOrigins("http://localhost:5173", "http://localhost:3000") // Autorise ton front React (Vite ou CRA)
+                        .allowedOrigins("http://localhost:5173", "http://localhost:3000", "http://localhost:8085") // Autorise ton front React (Vite ou CRA)
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Méthodes HTTP autorisées
                         .allowedHeaders("*")
                         .allowCredentials(true);
