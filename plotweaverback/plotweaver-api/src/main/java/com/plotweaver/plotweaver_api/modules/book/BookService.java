@@ -13,7 +13,7 @@ public class BookService {
 
     private static final int MAX_TITLE_LENGTH = 255;
     private static final int MAX_DESCRIPTION_LENGTH = 1_000;
-    private static final int MAX_COVER_URL_LENGTH = 1_000; // Si c'est une URL ou un chemin
+    private static final int MAX_COVER_URL_LENGTH = 1_000; 
 
     private final BookRepository bookRepository;
 
@@ -21,41 +21,42 @@ public class BookService {
         this.bookRepository = bookRepository;
     }
 
-    public List<Book> getAllBooks() {
-        return bookRepository.findAll();
+    public List<Book> getAllBooks(String ownerId) {
+        return bookRepository.findAllByOwnerId(ownerId);
     }
 
-    public Optional<Book> getBookById(Long id) {
+    public Optional<Book> getBookById(Long id, String ownerId) {
         requirePositiveId(id, "book_id");
-        return bookRepository.findById(id);
+        return bookRepository.findByIdAndOwnerId(id, ownerId);
     }
 
-    public Optional<Book> getBookByTitle(String title) {
+    public Optional<Book> getBookByTitle(String title, String ownerId) {
         String normalizedTitle = normalizeTitle(title);
 
-        if (!bookRepository.existsByTitle(normalizedTitle)) {
+        if (!bookRepository.existsByTitleAndOwnerId(normalizedTitle, ownerId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Livre introuvable");
         }
-        return bookRepository.findByTitle(normalizedTitle);
+        return bookRepository.findByTitleAndOwnerId(normalizedTitle, ownerId);
     }
 
-    public Book createBook(BookUpsertRequest request) {
-        BookUpsertRequest validRequest = validateAndNormalizeRequest(request, true); // true = création (titre obligatoire)
+    public Book createBook(BookUpsertRequest request, String ownerId) {
+        BookUpsertRequest validRequest = validateAndNormalizeRequest(request, true);
 
-        if (bookRepository.existsByTitle(validRequest.getTitle())) {
+        if (bookRepository.existsByTitleAndOwnerId(validRequest.getTitle(), ownerId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Un livre avec ce titre existe deja");
         }
 
         Book book = Book.builder()
                 .title(validRequest.getTitle())
                 .description(validRequest.getDescription())
-                .coverImage(validRequest.getCoverImage()) // <-- Ajout de la cover
+                .coverImage(validRequest.getCoverImage())
+                .ownerId(ownerId)
                 .build();
 
         return bookRepository.save(book);
     }
 
-    public Book updateBook(Book book, BookUpsertRequest request) {
+    public Book updateBook(Book book, BookUpsertRequest request, String ownerId) {
         if (book == null || book.getId() == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Livre introuvable");
         }
@@ -64,7 +65,7 @@ public class BookService {
 
         if (validRequest.getTitle() != null) {
             boolean changingTitle = !book.getTitle().equals(validRequest.getTitle());
-            if (changingTitle && bookRepository.existsByTitle(validRequest.getTitle())) {
+            if (changingTitle && bookRepository.existsByTitleAndOwnerId(validRequest.getTitle(), ownerId)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Un autre livre avec ce titre existe deja");
             }
             book.setTitle(validRequest.getTitle());
@@ -75,15 +76,15 @@ public class BookService {
         }
 
         if (validRequest.getCoverImage() != null) {
-            book.setCoverImage(validRequest.getCoverImage()); // <-- Mise à jour de la cover
+            book.setCoverImage(validRequest.getCoverImage());
         }
 
         return bookRepository.save(book);
     }
 
-    public void deleteBook(Long id) {
+    public void deleteBook(Long id, String ownerId) {
         requirePositiveId(id, "book_id");
-        Book book = bookRepository.findById(id)
+        Book book = bookRepository.findByIdAndOwnerId(id, ownerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Livre introuvable"));
         bookRepository.delete(book);
     }
@@ -93,7 +94,7 @@ public class BookService {
                 .id(book.getId())
                 .title(book.getTitle())
                 .description(book.getDescription())
-                .coverImage(book.getCoverImage()) // <-- Mappé dans la réponse vers le front
+                .coverImage(book.getCoverImage())
                 .createdAt(book.getCreatedAt())
                 .updatedAt(book.getUpdatedAt())
                 .chapterCount(book.getChapterCount())
