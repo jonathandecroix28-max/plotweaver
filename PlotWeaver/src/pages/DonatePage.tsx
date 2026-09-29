@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// ⚠️ Remplace par ton pseudo Buy Me a Coffee (buymeacoffee.com/<pseudo>)
 const BMC_USERNAME = 'ton-pseudo';
 const BMC_URL = `https://www.buymeacoffee.com/${BMC_USERNAME}`;
 
