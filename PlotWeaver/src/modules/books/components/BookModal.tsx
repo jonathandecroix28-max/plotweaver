@@ -13,7 +13,7 @@ interface BookModalProps {
 export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [isUploading, setIsUploading] = useState(false); // <--- Remonté ici en haut
+  const [isUploading, setIsUploading] = useState(false);
   
   const { url: coverImage, setUrl: setCoverImage, error: urlError, validate } = useCoverImage('');
   const { createBook, isCreating, error } = useCreateBook();
@@ -26,17 +26,14 @@ export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
     }
   }, [isOpen, setCoverImage]);
 
-  // Le return conditionnel doit être APRÈS tous les hooks
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-
     if (!validate()) return;
 
     const updatedBooks = await createBook(title, description, coverImage);
-    
     if (updatedBooks) {
       onBookCreated(updatedBooks); 
       onClose();
@@ -61,24 +58,23 @@ export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-amber-950/40 backdrop-blur-xs p-4">
-      <div className="bg-[#fffdf9] border border-amber-900/10 rounded-2xl p-6 md:p-8 max-w-lg w-full shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
+      <div className="bg-[#1c1411] border border-amber-900/40 rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl text-amber-50">
         
-        <div className="flex justify-between items-center mb-6 pb-3 border-b border-amber-900/10">
-          <h2 className="text-2xl font-serif font-bold text-amber-950">Nouveau Grimoire</h2>
+        <div className="flex justify-between items-center mb-6 pb-3 border-b border-amber-900/30">
+          <h2 className="text-2xl font-serif font-bold text-amber-100">Nouveau Grimoire</h2>
           <button 
             onClick={onClose}
-            className="text-amber-900/50 hover:text-amber-950 font-serif text-lg cursor-pointer"
+            className="text-amber-200/50 hover:text-amber-100 font-serif text-xl cursor-pointer"
           >
             &times;
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          
           <div>
-            <label className="block text-xs font-serif uppercase tracking-wider text-amber-900/70 mb-1">
-              Titre du roman <span className="text-red-600">*</span>
+            <label className="block text-xs font-serif uppercase tracking-wider text-amber-200/60 mb-1">
+              Titre du roman <span className="text-red-400">*</span>
             </label>
             <input 
               type="text" 
@@ -86,12 +82,12 @@ export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ex: Les Chroniques d'Onyx"
-              className="w-full bg-[#fcf9f2] border border-amber-900/20 rounded-lg px-4 py-2.5 text-amber-950 placeholder-amber-900/30 focus:outline-none focus:ring-2 focus:ring-amber-900/40 font-sans text-sm"
+              className="w-full bg-neutral-900 border border-amber-900/40 rounded-xl px-4 py-2.5 text-amber-100 placeholder-amber-200/30 focus:outline-none focus:ring-1 focus:ring-amber-500 font-sans text-sm"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-serif uppercase tracking-wider text-amber-900/70 mb-1">
+            <label className="block text-xs font-serif uppercase tracking-wider text-amber-200/60 mb-1">
               Description (Synopsis)
             </label>
             <textarea 
@@ -99,12 +95,12 @@ export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="De quoi parle votre histoire..."
-              className="w-full bg-[#fcf9f2] border border-amber-900/20 rounded-lg px-4 py-2.5 text-amber-950 placeholder-amber-900/30 focus:outline-none focus:ring-2 focus:ring-amber-900/40 font-sans text-sm resize-none"
+              className="w-full bg-neutral-900 border border-amber-900/40 rounded-xl px-4 py-2.5 text-amber-100 placeholder-amber-200/30 focus:outline-none focus:ring-1 focus:ring-amber-500 font-sans text-sm resize-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-serif uppercase tracking-wider text-amber-900/70 mb-1">
+            <label className="block text-xs font-serif uppercase tracking-wider text-amber-200/60 mb-1">
               Image de couverture
             </label>
             
@@ -114,12 +110,12 @@ export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
                 value={coverImage}
                 onChange={(e) => setCoverImage(e.target.value)}
                 placeholder="https://... ou uploadez un fichier"
-                className={`w-full bg-[#fcf9f2] border rounded-lg px-4 py-2.5 text-amber-950 placeholder-amber-900/30 focus:outline-none focus:ring-2 font-sans text-sm ${
-                  urlError ? 'border-red-500 ring-1 ring-red-500' : 'border-amber-900/20 focus:ring-amber-900/40'
+                className={`w-full bg-neutral-900 border rounded-xl px-4 py-2.5 text-amber-100 placeholder-amber-200/30 focus:outline-none font-sans text-sm ${
+                  urlError ? 'border-red-500 ring-1 ring-red-500' : 'border-amber-900/40 focus:ring-1 focus:ring-amber-500'
                 }`}
               />
 
-              <label className="bg-amber-100 hover:bg-amber-200 text-amber-900 px-4 py-2.5 rounded-lg text-xs font-medium transition cursor-pointer shrink-0 border border-amber-900/20 flex items-center gap-1">
+              <label className="bg-amber-950 hover:bg-amber-900 text-amber-200 px-4 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer shrink-0 border border-amber-800/50 flex items-center gap-1">
                 {isUploading ? "Envoi..." : "Parcourir"}
                 <input 
                   type="file" 
@@ -130,21 +126,21 @@ export function BookModal({ isOpen, onClose, onBookCreated }: BookModalProps) {
                 />
               </label>
             </div>
-            {urlError && <p className="text-red-600 text-xs mt-1 font-sans">{urlError}</p>}
+            {urlError && <p className="text-red-400 text-xs mt-1 font-sans">{urlError}</p>}
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-amber-900/10">
+          <div className="flex justify-end gap-3 pt-4 border-t border-amber-900/30">
             <button 
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-amber-900/20 text-amber-900 text-sm font-medium hover:bg-amber-100/50 transition cursor-pointer"
+              className="px-4 py-2 rounded-xl border border-amber-900/30 text-amber-200/70 text-sm font-medium hover:bg-neutral-900 transition cursor-pointer"
             >
               Annuler
             </button>
             <button 
               type="submit"
               disabled={isCreating}
-              className="bg-amber-900 hover:bg-amber-950 text-amber-50 px-5 py-2 rounded-lg text-sm font-medium transition shadow-sm disabled:opacity-50 cursor-pointer"
+              className="bg-amber-700 hover:bg-amber-600 text-amber-50 px-5 py-2 rounded-xl text-sm font-medium transition shadow-md disabled:opacity-50 cursor-pointer"
             >
               {isCreating ? "Création..." : "Poser la première pierre"}
             </button>

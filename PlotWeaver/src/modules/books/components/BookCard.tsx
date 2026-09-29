@@ -8,33 +8,28 @@ interface BookCardProps {
 }
 
 export function BookCard({ book, onSelect, onDelete }: BookCardProps) {
-  
-  
   const imageUrl = (book as any).cover_image || book.coverImage;
   const createdDate = (book as any).created_at || book.createdAt;
 
   return (
     <div 
       onClick={() => onSelect && onSelect(book.id)}
-      className="group relative bg-[#fffdf9] border border-amber-900/10 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg hover:border-amber-900/30 transition-all duration-300 flex flex-col justify-between cursor-pointer"
+      className="group relative bg-neutral-950/70 border border-amber-900/25 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:border-amber-600/40 transition-all duration-300 flex flex-col justify-between cursor-pointer"
     >
-
-      {/* Bouton de suppression discret en haut à droite */}
       {onDelete && (
         <button 
           onClick={(e) => {
             e.stopPropagation();
             onDelete(book.id);
           }}
-          className="absolute top-3 right-3 bg-red-950/40 hover:bg-red-700 text-amber-50 text-xs font-sans font-medium px-2.5 py-1 rounded-lg backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity z-20 cursor-pointer"
+          className="absolute top-3 right-3 bg-red-950/80 hover:bg-red-700 text-red-200 text-xs font-sans font-medium px-2.5 py-1 rounded-lg backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity z-20 cursor-pointer border border-red-900/40"
           title="Supprimer le livre"
         >
           Supprimer
         </button>
       )}
       
-      {/* Conteneur de l'image de couverture */}
-      <div className="relative h-44 w-full bg-amber-950/3 overflow-hidden flex items-center justify-center border-b border-amber-900/10">
+      <div className="relative h-44 w-full bg-neutral-900 overflow-hidden flex items-center justify-center border-b border-amber-900/20">
         {imageUrl ? (
           <img 
             src={imageUrl} 
@@ -42,7 +37,7 @@ export function BookCard({ book, onSelect, onDelete }: BookCardProps) {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <div className="flex flex-col items-center justify-center text-amber-900/30 p-4 text-center">
+          <div className="flex flex-col items-center justify-center text-amber-200/30 p-4 text-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mb-2 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="1.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
             </svg>
@@ -50,26 +45,24 @@ export function BookCard({ book, onSelect, onDelete }: BookCardProps) {
           </div>
         )}
 
-        {/* Badge du nombre de chapitres */}
-        <div className="absolute top-3 left-3 bg-[#fffdf9]/90 backdrop-blur-xs text-amber-950 text-xs font-sans font-medium px-2.5 py-1 rounded-lg border border-amber-900/10 shadow-2xs">
+        <div className="absolute top-3 left-3 bg-neutral-900/90 backdrop-blur-xs text-amber-200 text-xs font-sans font-medium px-2.5 py-1 rounded-lg border border-amber-900/30 shadow-sm">
           {book.chapterCount ?? 0} {book.chapterCount && book.chapterCount > 1 ? 'chapitres' : 'chapitre'}
         </div>
       </div>
 
-      {/* Contenu textuel du livre */}
-      <div className="p-6 flex flex-col grow justify-between">
+      <div className="p-5 sm:p-6 flex flex-col grow justify-between">
         <div>
-          <h2 className="text-xl font-serif font-bold text-amber-950 group-hover:text-amber-900 transition-colors mb-2 line-clamp-1">
+          <h2 className="text-xl font-serif font-bold text-amber-100 group-hover:text-amber-300 transition-colors mb-2 line-clamp-1">
             {book.title}
           </h2>
-          <p className="text-amber-900/70 text-sm line-clamp-2 mb-6 font-normal leading-relaxed font-serif italic">
+          <p className="text-amber-200/70 text-sm line-clamp-2 mb-6 font-normal leading-relaxed font-serif italic">
             {book.description || "Aucune description fournie pour ce grimoire..."}
           </p>
         </div>
 
-        <div className="pt-4 border-t border-amber-950/5 flex justify-between items-center text-xs text-amber-900/50">
+        <div className="pt-4 border-t border-amber-900/20 flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center text-xs text-amber-200/40">
           <span className="font-serif italic">Créé le {formatDate(createdDate)}</span>
-          <span className="text-amber-900 font-sans font-medium group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+          <span className="text-amber-400 font-sans font-medium group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
             Explorer &rarr;
           </span>
         </div>
