@@ -13,7 +13,7 @@ export function ChapterReadPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#fcf9f2] flex items-center justify-center font-serif text-amber-950">
+      <div className="min-h-screen bg-[#1c1411] flex items-center justify-center font-serif text-amber-200/60">
         Chargement du grimoire...
       </div>
     );
@@ -25,40 +25,40 @@ export function ChapterReadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fcf9f2] text-[#2c221e] flex flex-col font-serif">
+    <div className="min-h-screen bg-[#1c1411] text-[#fcf9f2] flex flex-col font-serif overflow-x-hidden">
       {/* Barre de navigation épurée */}
-      <header className="border-b border-amber-900/10 bg-[#fffdf9] px-6 py-4 flex items-center justify-between shadow-sm sticky top-0 z-10">
+      <header className="border-b border-amber-900/40 bg-neutral-950/80 px-4 sm:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shadow-md sticky top-0 z-10 backdrop-blur-xs">
         <button
           onClick={() => navigate(`/books/${bookId}`)}
-          className="text-amber-900/60 hover:text-amber-950 transition-colors text-sm cursor-pointer flex items-center gap-1 font-sans"
+          className="text-amber-200/60 hover:text-amber-100 transition-colors text-sm cursor-pointer flex items-center gap-1 font-sans touch-target"
         >
           &larr; Retour au livre
         </button>
-        <span className="text-sm font-sans text-amber-900/70 font-medium">
+        <span className="text-sm font-sans text-amber-200/70 font-medium">
           Chapitre {chapter.chapter_number}
         </span>
-        <div className="w-16"></div>
+        <div className="hidden sm:block w-16"></div>
       </header>
 
       {/* Contenu du livre stylisé */}
-      <main className="flex-1 max-w-3xl w-full mx-auto px-6 py-16 flex flex-col">
-        <h1 className="text-4xl md:text-5xl font-bold font-serif text-amber-950 mb-10 text-center">
+      <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-12 sm:py-16 flex flex-col">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold font-serif text-amber-100 mb-10 text-center tracking-tight">
           {chapter.title}
         </h1>
 
         <div 
-          className="prose prose-amber max-w-none text-lg leading-relaxed text-amber-950/90 font-serif mb-16"
+          className="prose prose-invert max-w-none text-lg leading-relaxed text-amber-100/90 font-serif mb-16"
           dangerouslySetInnerHTML={{ 
             __html: DOMPurify.sanitize(chapter.content || '') 
           }} 
         />
 
         {/* Boutons de navigation Précédent / Suivant en bas de page */}
-        <div className="border-t border-amber-900/10 pt-6 flex items-center justify-between font-sans">
+        <div className="border-t border-amber-900/30 pt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 font-sans">
           {prevChapter ? (
             <button
               onClick={() => navigate(`/books/${bookId}/chapters/${prevChapter.id}/read`)}
-              className="px-5 py-2.5 rounded-xl border border-amber-900/20 hover:bg-amber-950/5 text-amber-950 text-sm font-medium transition-colors cursor-pointer flex items-center gap-2"
+              className="px-5 py-2.5 rounded-xl border border-amber-900/30 hover:bg-neutral-900 text-amber-200 text-sm font-medium transition-colors cursor-pointer flex items-center justify-center gap-2 w-full sm:w-auto touch-target"
             >
               &larr; Chapitre précédent
             </button>
@@ -69,7 +69,7 @@ export function ChapterReadPage() {
           {nextChapter && (
             <button
               onClick={() => navigate(`/books/${bookId}/chapters/${nextChapter.id}/read`)}
-              className="px-5 py-2.5 rounded-xl bg-amber-900 hover:bg-amber-950 text-amber-50 text-sm font-medium transition-colors shadow-sm cursor-pointer flex items-center gap-2 ml-auto"
+              className="px-5 py-2.5 rounded-xl bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium transition-colors shadow-md cursor-pointer flex items-center justify-center gap-2 w-full sm:w-auto sm:ml-auto touch-target"
             >
               Chapitre suivant &rarr;
             </button>

@@ -29,19 +29,19 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   const chain = () => editor.chain().focus();
 
   const btnClass = (isActive: boolean) =>
-    `px-3 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer flex items-center justify-center min-w-[32px] ${
+    `px-3 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer flex items-center justify-center min-w-[32px] touch-target ${
       isActive ? 'bg-amber-900 text-amber-50 shadow-xs' : 'bg-amber-950/5 hover:bg-amber-950/10 text-amber-950'
     }`;
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 pb-4 mb-4 border-b border-amber-900/10 text-amber-950 bg-amber-950/2 p-2 rounded-lg">
+    <div className="flex flex-wrap items-center gap-1.5 pb-4 mb-4 border-b border-amber-900/10 text-amber-950 bg-amber-950/2 p-2 rounded-lg overflow-x-auto">
       
       {/*Historique*/}
       <button
         type="button"
         onClick={() => chain().undo().run()}
         disabled={!editor.can().undo()}
-        className="px-2.5 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer bg-amber-950/5 hover:bg-amber-950/10 disabled:opacity-30 disabled:cursor-not-allowed"
+        className="px-2.5 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer bg-amber-950/5 hover:bg-amber-950/10 disabled:opacity-30 disabled:cursor-not-allowed touch-target"
         title="Annuler (Ctrl+Z)"
       >
         ↺
@@ -50,7 +50,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         type="button"
         onClick={() => chain().redo().run()}
         disabled={!editor.can().redo()}
-        className="px-2.5 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer bg-amber-950/5 hover:bg-amber-950/10 disabled:opacity-30 disabled:cursor-not-allowed"
+        className="px-2.5 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer bg-amber-950/5 hover:bg-amber-950/10 disabled:opacity-30 disabled:cursor-not-allowed touch-target"
         title="Rétablir (Ctrl+Y)"
       >
         ↻
