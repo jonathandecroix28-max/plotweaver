@@ -56,6 +56,19 @@ export function Navbar() {
     </span>
   );
 
+  const DonateButton = (
+    <button
+      type="button"
+      onClick={() => navigate("/donate")}
+      title="Soutenir Plotweaver"
+      aria-label="Soutenir Plotweaver"
+      className="text-xs bg-yellow-400/10 hover:bg-yellow-400/20 text-yellow-200 px-3 py-2 rounded-xl border border-yellow-500/30 font-medium transition cursor-pointer flex items-center gap-2"
+    >
+      <span aria-hidden>☕</span>
+      <span className="hidden lg:inline">Soutenir</span>
+    </button>
+  );
+
   const Logo = (
     <button
       type="button"
@@ -103,6 +116,7 @@ export function Navbar() {
           </ul>
 
           <div className="ml-auto flex items-center gap-2">
+            {DonateButton}
             <ThemeToggle />
             <button
               type="button"
@@ -124,7 +138,10 @@ export function Navbar() {
       <header className="sm:hidden bg-[#1c1411] border-b border-amber-900/40 sticky top-0 z-40 shadow-md">
         <div className="px-4 h-14 flex items-center justify-between gap-3">
           {Logo}
-          <ThemeToggle />
+          <div className="flex items-center gap-2 shrink-0">
+            {DonateButton}
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 

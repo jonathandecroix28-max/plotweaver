@@ -10,6 +10,7 @@ import { NotFound } from './pages/404';
 import { IdeasPage } from './modules/ideas/pages/IdeasPage';
 import { IdeaVersionsPage } from './modules/ideas/pages/IdeaVersionsPage';
 import VersionsHubPage from './pages/VersionsHubPage';
+import DonatePage from './pages/DonatePage';
 
 function AppContent() {
   const location = useLocation();
@@ -33,6 +34,7 @@ function AppContent() {
           <Route path="/books/:bookId/chapters/:chapterId/versions/:versionId" element={<ChapterVersionsPage />} />
           <Route path="/books/:bookId/chapters/:chapterId/read" element={<ChapterReadPage />} />
           <Route path="/ideas" element={<IdeasPage />} />
+          <Route path="/donate" element={<DonatePage />} />
           <Route path="/versions" element={<VersionsHubPage />} />
           <Route path="/ideas/:ideaId/versions" element={<IdeaVersionsPage />} />
           <Route path="/ideas/:ideaId/versions/:versionId" element={<IdeaVersionsPage />} />
