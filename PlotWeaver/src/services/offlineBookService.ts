@@ -1,291 +1,226 @@
 import { bookService } from '../modules/books/services/bookService';
 import type { BookResponse } from '../types/book';
+import {
+  getDb,
+  rwTx,
+  isTempId,
+  newTempId,
+  httpStatus,
+  sortNewestFirst,
+  queueOp,
+  getOps,
+  clearOp,
+  clearOpsFor,
+  mergeServerSnapshot,
+  remapBookId,
+} from '../db/plotweaverDb';
 
-const LOCAL_STORAGE_KEY = 'plotweaver_offline_books';
-const LOCAL_STORAGE_DELETED_KEY = 'plotweaver_deleted_books'; 
-const LOCAL_STORAGE_UPDATED_KEY = 'plotweaver_pending_updates';
-const CHAPTER_LOCAL_STORAGE_KEY = 'plotweaver_offline_chapters';
+let bookSyncPromise: Promise<void> | null = null;
+
+async function replaceBook(tempId: number, serverBook: BookResponse) {
+  const tx = await rwTx();
+  await tx.objectStore('books').delete(tempId);
+  await tx.objectStore('books').put(serverBook);
+  await remapBookId(tx, tempId, serverBook.id);
+  await tx.done;
+}
 
 export const offlineBookService = {
-
-  getLocalBooks(): BookResponse[] {
-    const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!localData) return [];
-    try {
-      const parsed = JSON.parse(localData);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      return [];
-    }
-  },
-
-  saveLocalBooks(books: BookResponse[]) {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(books));
-  },
-
-  getPendingDeletions(): number[] {
-    const localData = localStorage.getItem(LOCAL_STORAGE_DELETED_KEY);
-    return localData ? JSON.parse(localData) : [];
-  },
-
-  savePendingDeletions(ids: number[]) {
-    localStorage.setItem(LOCAL_STORAGE_DELETED_KEY, JSON.stringify(ids));
-  },
-
-  addPendingDeletion(id: number) {
-    if (id > 1000000000) return; 
-
-    const pending = this.getPendingDeletions();
-    if (!pending.includes(id)) {
-      this.savePendingDeletions([...pending, id]);
-    }
-  },
-
-  getPendingUpdates(): number[] {
-    const localData = localStorage.getItem(LOCAL_STORAGE_UPDATED_KEY);
-    return localData ? JSON.parse(localData) : [];
-  },
-
-  savePendingUpdates(ids: number[]) {
-    localStorage.setItem(LOCAL_STORAGE_UPDATED_KEY, JSON.stringify(ids));
-  },
-
-  addPendingUpdate(id: number) {
-    if (id > 1000000000) return;
-
-    const pending = this.getPendingUpdates();
-    if (!pending.includes(id)) {
-      this.savePendingUpdates([...pending, id]);
-    }
+  async getLocalBooks(): Promise<BookResponse[]> {
+    const db = await getDb();
+    return sortNewestFirst(await db.getAll('books'));
   },
 
   async getAll(): Promise<BookResponse[]> {
-    const localBooks = this.getLocalBooks();
-
     try {
+      await this.syncToServer();
+
       const serverBooks = await bookService.getAll();
-
       if (Array.isArray(serverBooks)) {
-        await this.syncToServer();
-
-        const finalServerBooks = await bookService.getAll();
-        if (Array.isArray(finalServerBooks)) {
-          this.saveLocalBooks(finalServerBooks);
-          return finalServerBooks;
-        }
+        return await mergeServerSnapshot('book', serverBooks);
       }
     } catch (error) {
-      console.warn("Mode hors-ligne actif : utilisation du stockage local.");
+      console.warn('Mode hors-ligne actif : utilisation du stockage local.');
     }
 
-    return localBooks;
+    return this.getLocalBooks();
   },
 
   async getById(id: number): Promise<BookResponse> {
-    const books = this.getLocalBooks();
-    const book = books.find((b) => b.id === id);
-    if (!book) {
-      throw new Error("Livre introuvable.");
-    }
+    const db = await getDb();
+    const book = await db.get('books', id);
+    if (!book) throw new Error('Livre introuvable.');
     return book;
   },
 
   async create(title: string, description?: string, coverImage?: string): Promise<BookResponse[]> {
-    const books = this.getLocalBooks();
+    const db = await getDb();
 
     const tempBook: BookResponse = {
-      id: Date.now(), 
+      id: newTempId(),
       title,
       description,
       coverImage,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      chapterCount: 0
+      chapterCount: 0,
     };
-
-    let updatedBooks = [tempBook, ...books];
-    this.saveLocalBooks(updatedBooks);
+    await db.put('books', tempBook);
 
     try {
       const createdServerBook = await bookService.create({ title, description, coverImage });
-      
-      updatedBooks = updatedBooks.map(b => b.id === tempBook.id ? createdServerBook : b);
-      this.saveLocalBooks(updatedBooks);
-
-      const chaptersData = localStorage.getItem(CHAPTER_LOCAL_STORAGE_KEY);
-      if (chaptersData) {
-        try {
-          const chapters = JSON.parse(chaptersData);
-          if (Array.isArray(chapters)) {
-            const updatedChapters = chapters.map((c: any) => {
-              if (Number(c.bookId ?? c.book_id) === tempBook.id) {
-                return { ...c, bookId: createdServerBook.id, book_id: createdServerBook.id };
-              }
-              return c;
-            });
-            localStorage.setItem(CHAPTER_LOCAL_STORAGE_KEY, JSON.stringify(updatedChapters));
-          }
-        } catch (e) {
-          console.error("Erreur lors de la mise à jour des IDs de chapitres liés :", e);
-        }
-      }
-
+      await replaceBook(tempBook.id, createdServerBook);
     } catch (err) {
-      console.log("Livre enregistré localement en attente de synchronisation.");
+      console.log('Livre enregistré localement en attente de synchronisation.');
     }
 
-    return updatedBooks;
+    return this.getLocalBooks();
   },
 
   async remove(id: number): Promise<BookResponse[]> {
-    let books = this.getLocalBooks();
-    books = books.filter(b => b.id !== id);
-    this.saveLocalBooks(books);
+    const tx = await rwTx();
+
+    await tx.objectStore('books').delete(id);
+
+    const ideas = tx.objectStore('ideas');
+    for (const idea of await ideas.index('by_book').getAll(id)) {
+      await ideas.put({ ...idea, bookId: null });
+    }
+
+    if (isTempId(id)) {
+      const chapters = tx.objectStore('chapters');
+      for (const c of await chapters.index('by_book').getAll(id)) {
+        await chapters.delete(c.id);
+      }
+    } else {
+      await queueOp(tx, 'book', 'delete', id);
+    }
+    await tx.done;
+
+    if (isTempId(id)) return this.getLocalBooks();
 
     try {
       await bookService.delete(id);
+      await clearOpsFor('book', 'delete', id);
     } catch (err) {
-      console.log("Suppression enregistrée en local (serveur injoignable).");
-      this.addPendingDeletion(id);
+      if (httpStatus(err) === 404) {
+        await clearOpsFor('book', 'delete', id);
+      } else {
+        console.log('Suppression enregistrée en local (serveur injoignable).');
+      }
     }
 
-    return books;
+    return this.getLocalBooks();
   },
 
   async update(id: number, title: string, description?: string, coverImage?: string): Promise<BookResponse[]> {
-    const books = this.getLocalBooks();
-    const bookIndex = books.findIndex(b => b.id === id);
-    
-    if (bookIndex === -1) {
-      throw new Error("Livre introuvable.");
-    }
-
-    const current = books[bookIndex];
+    const db = await getDb();
+    const current = await db.get('books', id);
+    if (!current) throw new Error('Livre introuvable.');
 
     const updatedBook: BookResponse = {
       ...current,
       title,
       description,
       coverImage,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
 
-    books[bookIndex] = updatedBook;
-    this.saveLocalBooks(books);
+    const tx = await rwTx();
+    await tx.objectStore('books').put(updatedBook);
+    await queueOp(tx, 'book', 'update', id);
+    await tx.done;
 
-    try {
-      const serverUpdated = await bookService.update(id, { title, description, coverImage });
-      books[bookIndex] = serverUpdated;
-      this.saveLocalBooks(books);
-      return books;
-    } catch (err: any) {
-      console.log("Mise à jour enregistrée en local (serveur injoignable).");
-      this.addPendingUpdate(id); 
+    if (!isTempId(id)) {
+      try {
+        const serverUpdated = await bookService.update(id, { title, description, coverImage });
+        await db.put('books', serverUpdated);
+        await clearOpsFor('book', 'update', id);
+      } catch (err) {
+        console.log('Mise à jour enregistrée en local.');
+      }
     }
 
-    return books;
+    return this.getLocalBooks();
   },
 
   async syncToServer(): Promise<void> {
-    const pendingDeletions = this.getPendingDeletions();
-    if (pendingDeletions.length > 0) {
-      const remainingDeletions: number[] = [];
-      for (const id of pendingDeletions) {
-        try {
-          await bookService.delete(id);
-        } catch (err: any) { 
-          if (err?.response?.status === 404) {
-            console.log(`Le livre ${id} n'existe déjà plus sur le serveur.`);
-          } else {
-            remainingDeletions.push(id); 
-          }
+    if (bookSyncPromise) return bookSyncPromise;
+
+    bookSyncPromise = this._doSync().finally(() => {
+      bookSyncPromise = null;
+    });
+    return bookSyncPromise;
+  },
+
+  async _doSync(): Promise<void> {
+    const db = await getDb();
+
+    for (const op of await getOps('book', 'delete')) {
+      try {
+        await bookService.delete(op.entityId);
+        await clearOp(op.key!);
+      } catch (err) {
+        if (httpStatus(err) === 404) {
+          console.log(`Le livre ${op.entityId} n'existe plus sur le serveur.`);
+          await clearOp(op.key!);
         }
       }
-      this.savePendingDeletions(remainingDeletions);
     }
 
-    const pendingUpdates = this.getPendingUpdates();
-    if (pendingUpdates.length > 0) {
-      const remainingUpdates: number[] = [];
-      const localBooks = this.getLocalBooks();
-
-      for (const id of pendingUpdates) {
-        const bookToUpdate = localBooks.find(b => b.id === id);
-        if (bookToUpdate) {
-          try {
-            const serverUpdated = await bookService.update(id, {
-              title: bookToUpdate.title,
-              description: bookToUpdate.description,
-              coverImage: bookToUpdate.coverImage
-            });
-            const currentBooks = this.getLocalBooks();
-            this.saveLocalBooks(currentBooks.map(b => b.id === id ? serverUpdated : b));
-          } catch (err) {
-            console.warn(`Serveur encore indisponible pour synchro la mise à jour du livre ${id}`);
-            remainingUpdates.push(id);
-          }
-        }
+    for (const op of await getOps('book', 'update')) {
+      const local = await db.get('books', op.entityId);
+      if (!local) {
+        await clearOp(op.key!);
+        continue;
       }
-      this.savePendingUpdates(remainingUpdates);
+      try {
+        const serverUpdated = await bookService.update(local.id, {
+          title: local.title,
+          description: local.description,
+          coverImage: local.coverImage,
+        });
+        await db.put('books', serverUpdated);
+        await clearOp(op.key!);
+      } catch (err) {
+        if (httpStatus(err) === 404) await clearOp(op.key!);
+      }
     }
 
-    const books = this.getLocalBooks();
-    const pendingBooks = books.filter(b => b.id > 1000000000);
+    const pending = (await db.getAll('books')).filter((b) => isTempId(b.id));
+    if (pending.length === 0) return;
 
-    if (pendingBooks.length === 0) return;
-
+    let serverBooks: BookResponse[];
     try {
-      const serverBooks = await bookService.getAll();
-      if (Array.isArray(serverBooks)) {
-        for (const book of pendingBooks) {
-          const existingOnServer = serverBooks.find(
-            s => s.title.trim().toLowerCase() === book.title.trim().toLowerCase()
-          );
-
-          if (!existingOnServer) {
-            try {
-              const created = await bookService.create({
-                title: book.title,
-                description: book.description,
-                coverImage: book.coverImage
-              });
-
-              let currentBooks = this.getLocalBooks();
-              currentBooks = currentBooks.map(b => b.id === book.id ? created : b);
-              this.saveLocalBooks(currentBooks);
-
-              const chaptersData = localStorage.getItem(CHAPTER_LOCAL_STORAGE_KEY);
-              if (chaptersData) {
-                const chapters = JSON.parse(chaptersData);
-                if (Array.isArray(chapters)) {
-                  const updatedChapters = chapters.map((c: any) => {
-                    if (Number(c.bookId ?? c.book_id) === book.id) {
-                      return { ...c, bookId: created.id, book_id: created.id };
-                    }
-                    return c;
-                  });
-                  localStorage.setItem(CHAPTER_LOCAL_STORAGE_KEY, JSON.stringify(updatedChapters));
-                }
-              }
-
-            } catch (err) {
-              console.warn(`Serveur encore indisponible pour synchroniser la création : ${book.title}`);
-              return; 
-            }
-          }
-        }
-      }
+      const res = await bookService.getAll();
+      if (!Array.isArray(res)) return;
+      serverBooks = res;
     } catch (err) {
-      return; 
+      return;
     }
 
-    try {
-      const freshServerBooks = await bookService.getAll();
-      if (Array.isArray(freshServerBooks)) {
-        this.saveLocalBooks(freshServerBooks);
+    for (const book of pending) {
+      const existingOnServer = serverBooks.find(
+        (s) => s.title.trim().toLowerCase() === book.title.trim().toLowerCase()
+      );
+
+      if (existingOnServer) {
+        await replaceBook(book.id, existingOnServer);
+        continue;
       }
-    } catch (err) {
-      console.error("Erreur lors du rafraîchissement post-synchronisation", err);
+
+      try {
+        const created = await bookService.create({
+          title: book.title,
+          description: book.description,
+          coverImage: book.coverImage,
+        });
+        serverBooks.push(created);
+        await replaceBook(book.id, created);
+      } catch (err) {
+        console.warn(`Impossible de synchroniser la création du livre : ${book.title}`);
+        return; 
+      }
     }
-  }
+  },
 };

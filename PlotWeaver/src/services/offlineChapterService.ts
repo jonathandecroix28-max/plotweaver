@@ -1,9 +1,23 @@
 import { chapterService } from '../modules/chapters/services/chapterService';
 import type { ChapterResponse } from '../types/chapter';
+import { offlineBookService } from './offlineBookService';
+import {
+  getDb,
+  rwTx,
+  isTempId,
+  newTempId,
+  httpStatus,
+  normalizeChapter,
+  queueOp,
+  getOps,
+  clearOp,
+  clearOpsFor,
+  mergeServerSnapshot,
+  remapChapterId,
+  type RwTx,
+} from '../db/plotweaverDb';
 
-const LOCAL_STORAGE_KEY = 'plotweaver_offline_chapters';
-const LOCAL_STORAGE_DELETED_KEY = 'plotweaver_deleted_chapters';
-
+let chapterSyncPromise: Promise<void> | null = null;
 
 function deduplicateChapters(chapters: ChapterResponse[]): ChapterResponse[] {
   const seenIds = new Set<number>();
@@ -19,7 +33,7 @@ function deduplicateChapters(chapters: ChapterResponse[]): ChapterResponse[] {
 
     if (seenBookAndChapterNumber.has(bookChapterKey)) {
       const existingIndex = unique.findIndex(
-        item => Number(item.book_id) === bId && Number(item.chapter_number) === cNum
+        (item) => Number(item.book_id) === bId && Number(item.chapter_number) === cNum
       );
       if (existingIndex !== -1) {
         const existing = unique[existingIndex];
@@ -39,236 +53,262 @@ function deduplicateChapters(chapters: ChapterResponse[]): ChapterResponse[] {
   return unique;
 }
 
+const byChapterNumber = (a: ChapterResponse, b: ChapterResponse) =>
+  Number(a.chapter_number) - Number(b.chapter_number);
+
+async function replaceChapter(tempId: number, serverChapter: ChapterResponse) {
+  const server = normalizeChapter(serverChapter);
+  const tx: RwTx = await rwTx();
+  const store = tx.objectStore('chapters');
+
+  await store.delete(tempId);
+  const sameSlot = (await store.index('by_book').getAll(server.book_id)).filter(
+    (c) =>
+      c.id !== server.id &&
+      isTempId(c.id) &&
+      Number(c.chapter_number) === Number(server.chapter_number)
+  );
+  for (const c of sameSlot) await store.delete(c.id);
+  await store.put(server);
+  await remapChapterId(tx, tempId, server.id);
+  await tx.done;
+}
+
 export const offlineChapterService = {
-  getLocalChapters(): ChapterResponse[] {
-    const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!localData) return [];
-    try {
-      const parsed = JSON.parse(localData);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      return [];
-    }
-  },
-
-  saveLocalChapters(chapters: ChapterResponse[]) {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(chapters));
-  },
-
-  getPendingDeletions(): number[] {
-    const localData = localStorage.getItem(LOCAL_STORAGE_DELETED_KEY);
-    return localData ? JSON.parse(localData) : [];
-  },
-
-  savePendingDeletions(ids: number[]) {
-    localStorage.setItem(LOCAL_STORAGE_DELETED_KEY, JSON.stringify(ids));
-  },
-
-  addPendingDeletion(id: number) {
-    if (id > 1000000000) return; 
-
-    const pending = this.getPendingDeletions();
-    if (!pending.includes(id)) {
-      this.savePendingDeletions([...pending, id]);
-    }
+  async getLocalChapters(): Promise<ChapterResponse[]> {
+    const db = await getDb();
+    return deduplicateChapters(await db.getAll('chapters'));
   },
 
   async getAll(): Promise<ChapterResponse[]> {
     try {
       await this.syncToServer();
       const serverChapters = await chapterService.getAll();
-      
-      if (Array.isArray(serverChapters)) {
-        const local = this.getLocalChapters();
-        
-        const pendingLocal = local.filter(c => c.id > 1000000000);
 
-        const merged = deduplicateChapters([...serverChapters, ...pendingLocal]);
-        
-        this.saveLocalChapters(merged);
-        return merged;
+      if (Array.isArray(serverChapters)) {
+        return await mergeServerSnapshot('chapter', serverChapters, {
+          normalize: normalizeChapter,
+          pendingPosition: 'end',
+          finalize: deduplicateChapters,
+        });
       }
     } catch (error) {
-      console.warn("Mode hors-ligne actif : utilisation du stockage local.");
+      console.warn('Mode hors-ligne actif : utilisation du stockage local.');
     }
 
-    return deduplicateChapters(this.getLocalChapters());
+    return this.getLocalChapters();
   },
 
   async getByBookId(bookId: number): Promise<ChapterResponse[]> {
-
     try {
       await this.getAll();
     } catch (e) {
-
     }
-    
-    const chapters = this.getLocalChapters();
-    return chapters.filter(c => Number(c.book_id ?? c.book_id) === Number(bookId));
+
+    const db = await getDb();
+    const chapters = await db.getAllFromIndex('chapters', 'by_book', Number(bookId));
+    return deduplicateChapters(chapters).sort(byChapterNumber);
   },
 
   async getById(id: number): Promise<ChapterResponse> {
-    const chapters = this.getLocalChapters();
-    const chapter = chapters.find((c) => c.id === id);
-    if (!chapter) throw new Error("Chapitre introuvable.");
+    const db = await getDb();
+    const chapter = await db.get('chapters', id);
+    if (!chapter) throw new Error('Chapitre introuvable.');
     return chapter;
   },
 
-  async create(bookId: number, title: string, chapterNumber: number, content: string = ""): Promise<ChapterResponse[]> {
-    const chapters = this.getLocalChapters();
+  async create(
+    bookId: number,
+    title: string,
+    chapterNumber: number,
+    content: string = ''
+  ): Promise<ChapterResponse[]> {
+    const db = await getDb();
 
     const tempChapter: ChapterResponse = {
-      id: Date.now(), 
+      id: newTempId(),
       book_id: bookId,
       title,
-      content, 
+      content,
       chapter_number: chapterNumber,
-      book_title: "", 
+      book_title: '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    let updatedChapters = deduplicateChapters([...chapters, tempChapter]);
-    this.saveLocalChapters(updatedChapters);
+    const existing = await db.getAllFromIndex('chapters', 'by_book', Number(bookId));
+    const slotTaken = existing.some((c) => Number(c.chapter_number) === Number(chapterNumber));
+    if (!slotTaken) await db.put('chapters', tempChapter);
 
-    try {
-      const createdServerChapter = await chapterService.create({ 
-        book_id: bookId,
-        title, 
-        content, 
-        chapter_number: chapterNumber 
-      });
-      
-      const filtered = updatedChapters.filter(c => c.id !== tempChapter.id);
-      updatedChapters = deduplicateChapters([...filtered, createdServerChapter]);
-      this.saveLocalChapters(updatedChapters);
-    } catch (err) {
-      console.log("Chapitre enregistré localement en attente de synchronisation.");
+    if (!isTempId(bookId)) {
+      try {
+        const createdServerChapter = await chapterService.create({
+          book_id: bookId,
+          title,
+          content,
+          chapter_number: chapterNumber,
+        });
+        await replaceChapter(tempChapter.id, createdServerChapter);
+      } catch (err) {
+        console.log('Chapitre enregistré localement en attente de synchronisation.');
+      }
     }
 
-    return updatedChapters.filter(c => Number(c.book_id ?? c.book_id) === Number(bookId));
+    const chapters = await db.getAllFromIndex('chapters', 'by_book', Number(bookId));
+    return deduplicateChapters(chapters).sort(byChapterNumber);
   },
 
   async update(id: number, title: string, content: string): Promise<ChapterResponse> {
-    const chapters = this.getLocalChapters();
-    const chapterIndex = chapters.findIndex(c => c.id === id);
-    
-    if (chapterIndex === -1) {
-      throw new Error("Chapitre introuvable.");
-    }
+    const db = await getDb();
+    const current = await db.get('chapters', id);
+    if (!current) throw new Error('Chapitre introuvable.');
 
-    const current = chapters[chapterIndex];
-    const bId = current.book_id ?? current.book_id;
-    const cNum = current.chapter_number ?? current.chapter_number;
-
-    const updatedChapter: ChapterResponse = { 
-      ...current, 
-      title, 
-      content, 
-      updated_at: new Date().toISOString() 
+    const updatedChapter: ChapterResponse = {
+      ...current,
+      title,
+      content,
+      updated_at: new Date().toISOString(),
     };
 
-    chapters[chapterIndex] = updatedChapter;
-    this.saveLocalChapters(chapters);
+    const tx = await rwTx();
+    await tx.objectStore('chapters').put(updatedChapter);
+    await queueOp(tx, 'chapter', 'update', id);
+    await tx.done;
 
-    try {
-      const serverUpdated = await chapterService.update(id, { 
-        book_id: Number(bId),
-        chapter_number: Number(cNum),
-        title, 
-        content 
-      });
-      chapters[chapterIndex] = serverUpdated;
-      this.saveLocalChapters(chapters);
-      return serverUpdated;
-    } catch (err: any) {
-      console.error("🚨 ERREUR SERVEUR LORS DU PUT :", err.response?.data || err.message);
+    if (!isTempId(id) && !isTempId(current.book_id)) {
+      try {
+        const serverUpdated = normalizeChapter(
+          await chapterService.update(id, {
+            book_id: Number(current.book_id),
+            chapter_number: Number(current.chapter_number),
+            title,
+            content,
+          })
+        );
+        await db.put('chapters', serverUpdated);
+        await clearOpsFor('chapter', 'update', id);
+        return serverUpdated;
+      } catch (err: any) {
+        console.error('🚨 ERREUR SERVEUR LORS DU PUT :', err.response?.data || err.message);
+      }
     }
 
     return updatedChapter;
   },
 
   async remove(id: number): Promise<boolean> {
-    let chapters = this.getLocalChapters();
-    chapters = chapters.filter(c => c.id !== id);
-    this.saveLocalChapters(chapters);
+    const tx = await rwTx();
+    await tx.objectStore('chapters').delete(id);
+    await queueOp(tx, 'chapter', 'delete', id);
+    await tx.done;
+
+    if (isTempId(id)) return true;
 
     try {
       await chapterService.delete(id);
-      return true; 
+      await clearOpsFor('chapter', 'delete', id);
+      return true;
     } catch (err) {
-      console.log("Suppression enregistrée en local (serveur injoignable).");
-      this.addPendingDeletion(id);
-      return false; 
+      if (httpStatus(err) === 404) {
+        await clearOpsFor('chapter', 'delete', id);
+        return true;
+      }
+      console.log('Suppression enregistrée en local (serveur injoignable).');
+      return false;
     }
   },
 
-  isSyncing: false,
-
   async syncToServer(): Promise<void> {
-    if (this.isSyncing) return;
-    this.isSyncing = true;
+    if (chapterSyncPromise) return chapterSyncPromise;
 
+    chapterSyncPromise = this._doSync().finally(() => {
+      chapterSyncPromise = null;
+    });
+    return chapterSyncPromise;
+  },
+
+  async _doSync(): Promise<void> {
     try {
-      const pendingDeletions = this.getPendingDeletions();
-      if (pendingDeletions.length > 0) {
-        const remainingDeletions: number[] = [];
-        for (const id of pendingDeletions) {
-          try {
-            await chapterService.delete(id);
-          } catch (error) {
-            remainingDeletions.push(id);
-          }
-        }
-        this.savePendingDeletions(remainingDeletions);
-      }
-
-      const chapters = this.getLocalChapters();
-      const pendingChapters = chapters.filter(c => c.id > 1000000000);
-
-      if (pendingChapters.length > 0) {
-        let serverChapters: ChapterResponse[] = [];
-        try {
-          const res = await chapterService.getAll();
-          if (Array.isArray(res)) serverChapters = res;
-        } catch (e) {
-          return;
-        }
-
-        let currentChapters = this.getLocalChapters();
-
-        for (const chapter of pendingChapters) {
-          const existingOnServer = serverChapters.find(
-            s => Number(s.book_id) === Number(chapter.book_id) && 
-                 Number(s.chapter_number) === Number(chapter.chapter_number)
-          );
-
-          if (existingOnServer) {
-            currentChapters = currentChapters.filter(c => c.id !== chapter.id);
-            currentChapters = deduplicateChapters([...currentChapters, existingOnServer]);
-            this.saveLocalChapters(currentChapters);
-          } else {
-            try {
-              const created = await chapterService.create({
-                book_id: Number(chapter.book_id),
-                title: chapter.title,
-                content: chapter.content ?? "",
-                chapter_number: Number(chapter.chapter_number)
-              });
-
-              
-              serverChapters.push(created);
-              currentChapters = currentChapters.filter(c => c.id !== chapter.id);
-              currentChapters = deduplicateChapters([...currentChapters, created]);
-              this.saveLocalChapters(currentChapters);
-            } catch (err) {
-              console.warn(`Serveur indisponible pour synchroniser le chapitre : ${chapter.title}`);
-            }
-          }
-        }
-      }
-    } finally {
-      this.isSyncing = false;
+      await offlineBookService.syncToServer();
+    } catch (e) {
+      console.warn('Synchro des livres ignorée temporairement.');
     }
-  }
+
+    const db = await getDb();
+
+    for (const op of await getOps('chapter', 'delete')) {
+      try {
+        await chapterService.delete(op.entityId);
+        await clearOp(op.key!);
+      } catch (err) {
+        if (httpStatus(err) === 404) await clearOp(op.key!);
+      }
+    }
+
+    for (const op of await getOps('chapter', 'update')) {
+      const local = await db.get('chapters', op.entityId);
+      if (!local) {
+        await clearOp(op.key!);
+        continue;
+      }
+      if (isTempId(local.book_id)) continue;
+      try {
+        const serverUpdated = normalizeChapter(
+          await chapterService.update(local.id, {
+            book_id: Number(local.book_id),
+            chapter_number: Number(local.chapter_number),
+            title: local.title,
+            content: local.content ?? '',
+          })
+        );
+        await db.put('chapters', serverUpdated);
+        await clearOp(op.key!);
+      } catch (err) {
+        if (httpStatus(err) === 404) await clearOp(op.key!);
+      }
+    }
+
+    const pending = (await db.getAll('chapters')).filter((c) => isTempId(c.id));
+    if (pending.length === 0) return;
+
+    let serverChapters: ChapterResponse[];
+    try {
+      const res = await chapterService.getAll();
+      if (!Array.isArray(res)) return;
+      serverChapters = res;
+    } catch (e) {
+      return;
+    }
+
+    for (const chapter of pending) {
+      if (isTempId(chapter.book_id)) {
+        console.log(`Chapitre "${chapter.title}" en attente de la synchro de son livre.`);
+        continue;
+      }
+
+      const existingOnServer = serverChapters.find(
+        (s) =>
+          Number(s.book_id) === Number(chapter.book_id) &&
+          Number(s.chapter_number) === Number(chapter.chapter_number)
+      );
+
+      if (existingOnServer) {
+        await replaceChapter(chapter.id, existingOnServer);
+        continue;
+      }
+
+      try {
+        const created = await chapterService.create({
+          book_id: Number(chapter.book_id),
+          title: chapter.title,
+          content: chapter.content ?? '',
+          chapter_number: Number(chapter.chapter_number),
+        });
+        serverChapters.push(created);
+        await replaceChapter(chapter.id, created);
+      } catch (err) {
+        console.warn(`Serveur indisponible pour synchroniser le chapitre : ${chapter.title}`);
+      }
+    }
+  },
 };
