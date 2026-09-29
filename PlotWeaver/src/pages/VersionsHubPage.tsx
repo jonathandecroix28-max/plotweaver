@@ -25,6 +25,93 @@ type VersionRow =
       openPath: string | null;
     };
 
+type VersionsSectionProps = {
+  title: string;
+  subtitle: string;
+  tag: string;
+  emptyLabel: string;
+  rows: VersionRow[];
+  onOpen: (path: string) => void;
+};
+
+function VersionsSection({ title, subtitle, tag, emptyLabel, rows, onOpen }: VersionsSectionProps) {
+  const openButton = (row: VersionRow, className = '') => (
+    <button
+      onClick={() => row.openPath && onOpen(row.openPath)}
+      disabled={!row.openPath}
+      className={`px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-amber-50 text-xs font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap ${className}`}
+    >
+      {row.openPath ? 'Ouvrir' : 'Manquant'}
+    </button>
+  );
+
+  return (
+    <section className="rounded-2xl sm:rounded-3xl border border-amber-900/25 bg-neutral-950/55 shadow-xl overflow-hidden">
+      <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-amber-900/20 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-lg sm:text-xl font-bold text-amber-100">{title}</h2>
+          <p className="text-xs sm:text-sm text-amber-200/50">{subtitle}</p>
+        </div>
+        <div className="hidden sm:block text-xs text-amber-200/40 uppercase tracking-[0.22em] shrink-0">{tag}</div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="px-5 py-10 text-center text-amber-200/60">{emptyLabel}</div>
+      ) : (
+        <>
+          {/* Mobile : une carte compacte par version, tout est visible sans scroll horizontal */}
+          <ul className="md:hidden divide-y divide-amber-900/10">
+            {rows.map((row) => (
+              <li key={`${row.kind}-${row.id}`} className="p-3 flex items-center gap-3">
+                <span className="inline-flex h-9 min-w-9 px-1.5 shrink-0 items-center justify-center rounded-full border border-amber-800/40 bg-amber-950 text-amber-300 text-xs font-bold">
+                  v{row.version.versionNumber}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-amber-100 truncate">{row.parentTitle}</div>
+                  <div className="text-xs text-amber-200/40 truncate">{row.parentSubtitle}</div>
+                  <div className="text-[11px] text-amber-200/50 mt-0.5">
+                    {new Date(row.version.updatedAt).toLocaleDateString()}
+                  </div>
+                </div>
+                {openButton(row, 'shrink-0')}
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop / tablette : tableau */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-amber-900/20">
+              <thead className="bg-neutral-950/80">
+                <tr className="text-left text-xs uppercase tracking-[0.22em] text-amber-200/40">
+                  <th className="px-5 py-4 font-medium">Parent</th>
+                  <th className="px-5 py-4 font-medium">Version</th>
+                  <th className="px-5 py-4 font-medium">Mise à jour</th>
+                  <th className="px-5 py-4 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-amber-900/10">
+                {rows.map((row) => (
+                  <tr key={`${row.kind}-${row.id}`} className="hover:bg-neutral-900/50 transition-colors">
+                    <td className="px-5 py-4">
+                      <div className="font-semibold text-amber-100">{row.parentTitle}</div>
+                      <div className="text-xs text-amber-200/40">{row.parentSubtitle}</div>
+                    </td>
+                    <td className="px-5 py-4 text-amber-100">v{row.version.versionNumber}</td>
+                    <td className="px-5 py-4 text-amber-200/70 text-sm whitespace-nowrap">
+                      {new Date(row.version.updatedAt).toLocaleString()}
+                    </td>
+                    <td className="px-5 py-4">{openButton(row)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 export function VersionsHubPage() {
   const navigate = useNavigate();
   const [chapterRows, setChapterRows] = useState<VersionRow[]>([]);
@@ -115,147 +202,64 @@ export function VersionsHubPage() {
 
   const stats = useMemo(() => {
     return [
-      { label: 'Versions chapitre', value: chapterRows.length },
-      { label: 'Versions idée', value: ideaRows.length },
+      { label: 'Chapitres', value: chapterRows.length },
+      { label: 'Idées', value: ideaRows.length },
       { label: 'Total', value: chapterRows.length + ideaRows.length },
     ];
   }, [chapterRows.length, ideaRows.length]);
 
   return (
-    <div className="min-h-screen bg-[#1c1411] text-[#fcf9f2] font-serif overflow-x-hidden">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8">
+    <div className="min-h-full bg-[#1c1411] text-[#fcf9f2] font-serif overflow-x-hidden">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-10 space-y-5 sm:space-y-8">
         <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-amber-200/40 mb-2">Administration</p>
-            <h1 className="text-4xl font-bold text-amber-100">Versions</h1>
-            <p className="text-amber-200/55 mt-2 max-w-2xl">
+            <p className="text-[11px] sm:text-xs uppercase tracking-[0.28em] text-amber-200/40 mb-1 sm:mb-2">Administration</p>
+            <h1 className="text-2xl sm:text-4xl font-bold text-amber-100">Versions</h1>
+            <p className="text-sm sm:text-base text-amber-200/55 mt-1 sm:mt-2 max-w-2xl">
               Accédez aux tableaux de versions pour les chapitres et les idées depuis un point d’entrée unique.
             </p>
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-3">
+        {/* 3 stats sur une seule ligne, même sur mobile */}
+        <section className="grid grid-cols-3 gap-2 sm:gap-4">
           {stats.map((stat) => (
-            <div key={stat.label} className="rounded-3xl border border-amber-900/25 bg-neutral-950/60 p-5 sm:p-6 shadow-xl">
-              <div className="text-xs uppercase tracking-[0.28em] text-amber-200/40 mb-2">{stat.label}</div>
-              <div className="text-4xl font-bold text-amber-100">{stat.value}</div>
+            <div key={stat.label} className="rounded-2xl sm:rounded-3xl border border-amber-900/25 bg-neutral-950/60 p-3 sm:p-6 shadow-xl">
+              <div className="text-[10px] sm:text-xs uppercase tracking-[0.18em] sm:tracking-[0.28em] text-amber-200/40 mb-1 sm:mb-2 truncate">
+                {stat.label}
+              </div>
+              <div className="text-2xl sm:text-4xl font-bold text-amber-100">{stat.value}</div>
             </div>
           ))}
         </section>
 
         {isLoading ? (
-          <div className="rounded-3xl border border-amber-900/25 bg-neutral-950/55 p-8 text-amber-200/60 shadow-xl">
+          <div className="rounded-2xl sm:rounded-3xl border border-amber-900/25 bg-neutral-950/55 p-6 sm:p-8 text-amber-200/60 shadow-xl">
             Chargement du tableau des versions...
           </div>
         ) : error ? (
-          <div className="rounded-3xl border border-red-900/30 bg-red-950/20 p-8 text-red-200 shadow-xl">
+          <div className="rounded-2xl sm:rounded-3xl border border-red-900/30 bg-red-950/20 p-6 sm:p-8 text-red-200 shadow-xl">
             {error}
           </div>
         ) : (
           <>
-            <section className="rounded-3xl border border-amber-900/25 bg-neutral-950/55 shadow-xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-amber-900/20 flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-amber-100">Versions des chapitres</h2>
-                  <p className="text-sm text-amber-200/50">Accès direct à chaque chapitre et à son historique</p>
-                </div>
-                <div className="text-xs text-amber-200/40 uppercase tracking-[0.22em]">Chapter versions</div>
-              </div>
+            <VersionsSection
+              title="Versions des chapitres"
+              subtitle="Accès direct à chaque chapitre et à son historique"
+              tag="Chapter versions"
+              emptyLabel="Aucune version de chapitre."
+              rows={chapterRows}
+              onOpen={navigate}
+            />
 
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-amber-900/20">
-                  <thead className="bg-neutral-950/80">
-                    <tr className="text-left text-xs uppercase tracking-[0.22em] text-amber-200/40">
-                      <th className="px-5 py-4 font-medium">Parent</th>
-                      <th className="px-5 py-4 font-medium">Version</th>
-                      <th className="px-5 py-4 font-medium">Mise à jour</th>
-                      <th className="px-5 py-4 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-amber-900/10">
-                    {chapterRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="px-5 py-12 text-center text-amber-200/60">
-                          Aucune version de chapitre.
-                        </td>
-                      </tr>
-                    ) : (
-                      chapterRows.map((row) => (
-                        <tr key={`chapter-${row.id}`} className="hover:bg-neutral-900/50 transition-colors">
-                          <td className="px-5 py-4">
-                            <div className="font-semibold text-amber-100">{row.parentTitle}</div>
-                            <div className="text-xs text-amber-200/40">{row.parentSubtitle}</div>
-                          </td>
-                          <td className="px-5 py-4 text-amber-100">v{row.version.versionNumber}</td>
-                          <td className="px-5 py-4 text-amber-200/70 text-sm">{new Date(row.version.updatedAt).toLocaleString()}</td>
-                          <td className="px-5 py-4">
-                              <button
-                                onClick={() => row.openPath && navigate(row.openPath)}
-                                disabled={!row.openPath}
-                                className="px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-amber-50 text-xs font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                              >
-                                {row.openPath ? 'Ouvrir' : 'Parent manquant'}
-                              </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-amber-900/25 bg-neutral-950/55 shadow-xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-amber-900/20 flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-amber-100">Versions des idées</h2>
-                  <p className="text-sm text-amber-200/50">Accès direct à chaque idée et à son historique</p>
-                </div>
-                <div className="text-xs text-amber-200/40 uppercase tracking-[0.22em]">Idea versions</div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-amber-900/20">
-                  <thead className="bg-neutral-950/80">
-                    <tr className="text-left text-xs uppercase tracking-[0.22em] text-amber-200/40">
-                      <th className="px-5 py-4 font-medium">Parent</th>
-                      <th className="px-5 py-4 font-medium">Version</th>
-                      <th className="px-5 py-4 font-medium">Mise à jour</th>
-                      <th className="px-5 py-4 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-amber-900/10">
-                    {ideaRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="px-5 py-12 text-center text-amber-200/60">
-                          Aucune version d’idée.
-                        </td>
-                      </tr>
-                    ) : (
-                      ideaRows.map((row) => (
-                        <tr key={`idea-${row.id}`} className="hover:bg-neutral-900/50 transition-colors">
-                          <td className="px-5 py-4">
-                            <div className="font-semibold text-amber-100">{row.parentTitle}</div>
-                            <div className="text-xs text-amber-200/40">{row.parentSubtitle}</div>
-                          </td>
-                          <td className="px-5 py-4 text-amber-100">v{row.version.versionNumber}</td>
-                          <td className="px-5 py-4 text-amber-200/70 text-sm">{new Date(row.version.updatedAt).toLocaleString()}</td>
-                          <td className="px-5 py-4">
-                              <button
-                                onClick={() => row.openPath && navigate(row.openPath)}
-                                disabled={!row.openPath}
-                                className="px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-amber-50 text-xs font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                              >
-                                {row.openPath ? 'Ouvrir' : 'Parent manquant'}
-                              </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+            <VersionsSection
+              title="Versions des idées"
+              subtitle="Accès direct à chaque idée et à son historique"
+              tag="Idea versions"
+              emptyLabel="Aucune version d’idée."
+              rows={ideaRows}
+              onOpen={navigate}
+            />
           </>
         )}
       </main>
