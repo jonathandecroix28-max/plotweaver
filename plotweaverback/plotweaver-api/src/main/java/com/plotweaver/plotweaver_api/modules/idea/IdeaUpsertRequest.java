@@ -19,6 +19,9 @@ public class IdeaUpsertRequest {
     @Schema(description = "Description de l'idée", example = "Ceci est une idée")
     private String description;
 
+    @Schema(description = "Statut de l'idée", example = "draft")
+    private String status; 
+
     @Schema(description = "Identifiant du livre associé", example = "1")
     @JsonAlias({"book_id", "bookId"})
     private Long bookId;

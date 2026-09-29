@@ -22,6 +22,9 @@ public class IdeaResponse {
     @Schema(description = "Description de l'idée", example = "Ceci est une idée")
     final private String description;
 
+    @Schema(description = "Statut de l'idée", example = "draft")
+    final private String status;
+
     @Schema(description = "Identifiant du livre associé", example = "1")
     final private Long bookId;
 

@@ -41,8 +41,15 @@ public class Idea {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private String status = "draft";
+
+    @Column(name = "owner_id", nullable = false)
+    private String ownerId;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "book_id", nullable = false)
+    @JoinColumn(name = "book_id", nullable = true)
     private Book book;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -59,8 +66,12 @@ public class Idea {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        if (this.status == null) {
+            this.status = "draft";
+        }
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
     }
 
     @PreUpdate

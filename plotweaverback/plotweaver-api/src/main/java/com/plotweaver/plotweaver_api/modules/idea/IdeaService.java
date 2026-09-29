@@ -20,7 +20,7 @@ public class IdeaService {
 
     private final IdeaRepository ideaRepository;
     private final BookRepository bookRepository;
-    private final CategoryRepository categoryRepository; // <--- Ajouté
+    private final CategoryRepository categoryRepository;
 
     public IdeaService(IdeaRepository ideaRepository, BookRepository bookRepository, CategoryRepository categoryRepository) {
         this.ideaRepository = ideaRepository;
@@ -28,88 +28,111 @@ public class IdeaService {
         this.categoryRepository = categoryRepository;
     }
 
-    public List<Idea> getAllIdeas() {
-        return ideaRepository.findAll();
+    public List<Idea> getAllIdeas(String ownerId) {
+        validateOwnerId(ownerId);
+        return ideaRepository.findByOwnerId(ownerId);
     }
 
-    public Idea getIdeaByIdOrThrow(Long id) {
+    public Idea getIdeaByIdOrThrow(Long id, String ownerId) {
         requirePositiveId(id, "idea_id");
-        return findIdeaOrThrow(id);
+        validateOwnerId(ownerId);
+        return findIdeaOrThrow(id, ownerId);
     }
 
-    public Optional<Idea> getIdeaById(Long id) {
+    public Optional<Idea> getIdeaById(Long id, String ownerId) {
         requirePositiveId(id, "idea_id");
-        return ideaRepository.findById(id);
+        validateOwnerId(ownerId);
+        return ideaRepository.findByIdAndOwnerId(id, ownerId);
     }
 
-    public List<Idea> getIdeasByBookId(Long bookId) {
+    public List<Idea> getIdeasByBookId(Long bookId, String ownerId) {
         requirePositiveId(bookId, "book_id");
-        findBookOrThrow(bookId);
-        return ideaRepository.findByBookId(bookId);
+        validateOwnerId(ownerId);
+        findBookOrThrow(bookId, ownerId);
+        return ideaRepository.findByOwnerIdAndBookId(ownerId, bookId);
     }
 
-    public List<Idea> getIdeasByCategoryId(Long categoryId) {
+    public List<Idea> getIdeasByCategoryId(Long categoryId, String ownerId) {
         requirePositiveId(categoryId, "category_id");
-        findCategoryOrThrow(categoryId);
-        return ideaRepository.findByCategoryId(categoryId);
+        validateOwnerId(ownerId);
+        findCategoryOrThrow(categoryId, ownerId);
+        return ideaRepository.findByOwnerIdAndCategoryId(ownerId, categoryId);
     }
 
-    public Long countIdeasForBook(Long bookId) {
+    public Long countIdeasForBook(Long bookId, String ownerId) {
         requirePositiveId(bookId, "book_id");
-        findBookOrThrow(bookId);
-        return (long) ideaRepository.findByBookId(bookId).size();
+        validateOwnerId(ownerId);
+        findBookOrThrow(bookId, ownerId);
+        return (long) ideaRepository.findByOwnerIdAndBookId(ownerId, bookId).size();
     }
 
-    public Idea createIdea(IdeaUpsertRequest request) {
+    public Idea createIdea(IdeaUpsertRequest request, String ownerId) {
+        validateOwnerId(ownerId);
         IdeaUpsertRequest validRequest = validateAndNormalizeRequest(request);
-        Book book = findBookOrThrow(validRequest.getBookId());
         
-        // Vérifie et récupère la catégorie, et s'assure qu'elle appartient bien au livre
-        Category category = findCategoryOrThrow(validRequest.getCategoryId());
-        if (!category.getBook().getId().equals(book.getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La catégorie spécifiée n'appartient pas à ce livre.");
+        Book book = null;
+        if (validRequest.getBookId() != null && validRequest.getBookId() > 0) {
+            book = findBookOrThrow(validRequest.getBookId(), ownerId);
         }
+        
+        Category category = findCategoryOrThrow(validRequest.getCategoryId(), ownerId);
 
-        if (ideaRepository.existsByBookIdAndName(book.getId(), validRequest.getName())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Une idée avec le même nom existe déjà pour ce livre.");
+        boolean nameExists = book != null 
+            ? ideaRepository.existsByOwnerIdAndBookIdAndName(ownerId, book.getId(), validRequest.getName())
+            : ideaRepository.existsByOwnerIdAndBookIsNullAndName(ownerId, validRequest.getName());
+
+        if (nameExists) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Une idée avec le même nom existe déjà.");
         }
 
         Idea idea = new Idea();
         idea.setName(validRequest.getName());
         idea.setDescription(validRequest.getDescription());
+        idea.setStatus(validRequest.getStatus() != null ? validRequest.getStatus() : "draft");
         idea.setBook(book);
-        idea.setCategory(category); // <--- Association
+        idea.setCategory(category);
+        idea.setOwnerId(ownerId);
 
         return ideaRepository.save(idea);
     }
 
-    public Idea updateIdea(Long id, IdeaUpsertRequest request) {
+    public Idea updateIdea(Long id, IdeaUpsertRequest request, String ownerId) {
         requirePositiveId(id, "idea_id");
-        Idea idea = findIdeaOrThrow(id);
+        validateOwnerId(ownerId);
+        Idea idea = findIdeaOrThrow(id, ownerId);
 
         IdeaUpsertRequest validRequest = validateAndNormalizeRequest(request);
-        Book book = findBookOrThrow(validRequest.getBookId());
-
-        Category category = findCategoryOrThrow(validRequest.getCategoryId());
-        if (!category.getBook().getId().equals(book.getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La catégorie spécifiée n'appartient pas à ce livre.");
+        
+        Book book = null;
+        if (validRequest.getBookId() != null && validRequest.getBookId() > 0) {
+            book = findBookOrThrow(validRequest.getBookId(), ownerId);
         }
 
-        if (ideaRepository.existsByBookIdAndNameAndIdNot(book.getId(), validRequest.getName(), idea.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Une autre idée avec le même nom existe déjà pour ce livre.");
+        Category category = findCategoryOrThrow(validRequest.getCategoryId(), ownerId);
+
+        boolean nameExists = book != null 
+            ? ideaRepository.existsByOwnerIdAndBookIdAndNameAndIdNot(ownerId, book.getId(), validRequest.getName(), idea.getId())
+            : ideaRepository.existsByOwnerIdAndBookIsNullAndNameAndIdNot(ownerId, validRequest.getName(), idea.getId());
+
+        if (nameExists) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Une autre idée avec le même nom existe déjà.");
         }
 
         idea.setName(validRequest.getName());
         idea.setDescription(validRequest.getDescription());
+        if (validRequest.getStatus() != null) {
+            idea.setStatus(validRequest.getStatus()); 
+        }
         idea.setBook(book);
-        idea.setCategory(category); // <--- Mise à jour de la catégorie
+        idea.setCategory(category);
 
         return ideaRepository.save(idea);
     }
 
-    public void deleteIdea(Long id) {
+    public void deleteIdea(Long id, String ownerId) {
         requirePositiveId(id, "idea_id");
-        Idea idea = findIdeaOrThrow(id);
+        validateOwnerId(ownerId);
+        Idea idea = findIdeaOrThrow(id, ownerId);
         ideaRepository.delete(idea);
     }
 
@@ -118,8 +141,9 @@ public class IdeaService {
                 .id(idea.getId())
                 .name(idea.getName())
                 .description(idea.getDescription())
-                .bookId(idea.getBook().getId())
-                .categoryId(idea.getCategory() != null ? idea.getCategory().getId() : null) // <--- Ajouté au Response
+                .status(idea.getStatus() != null ? idea.getStatus() : "draft") 
+                .bookId(idea.getBook() != null ? idea.getBook().getId() : null)
+                .categoryId(idea.getCategory() != null ? idea.getCategory().getId() : null)
                 .createdAt(idea.getCreatedAt())
                 .updatedAt(idea.getUpdatedAt())
                 .build();
@@ -144,10 +168,7 @@ public class IdeaService {
         if (request.getDescription() != null && request.getDescription().length() > MAX_DESCRIPTION_LENGTH) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le contenu ne doit pas dépasser " + MAX_DESCRIPTION_LENGTH + " caractères.");
         }
-        if (request.getBookId() == null || request.getBookId() <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'identifiant du livre associé doit être un entier positif.");
-        }
-        if (request.getCategoryId() == null || request.getCategoryId() <= 0) { // <--- Validation de l'ID catégorie
+        if (request.getCategoryId() == null || request.getCategoryId() <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'identifiant de la catégorie associée doit être un entier positif.");
         }
 
@@ -155,28 +176,37 @@ public class IdeaService {
         if (request.getDescription() != null) {
             request.setDescription(request.getDescription().trim());
         }
+        if (request.getStatus() != null) {
+            request.setStatus(request.getStatus().trim());
+        }
 
         return request;
     }
 
-    private Idea findIdeaOrThrow(Long id) {
-        return ideaRepository.findById(id)
+    private Idea findIdeaOrThrow(Long id, String ownerId) {
+        return ideaRepository.findByIdAndOwnerId(id, ownerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Idée introuvable"));
     }
 
-    private Book findBookOrThrow(Long bookId) {
-        return bookRepository.findById(bookId)
+    private Book findBookOrThrow(Long bookId, String ownerId) {
+        return bookRepository.findByIdAndOwnerId(bookId, ownerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Livre introuvable"));
     }
 
-    private Category findCategoryOrThrow(Long categoryId) {
-        return categoryRepository.findById(categoryId)
+    private Category findCategoryOrThrow(Long categoryId, String ownerId) {
+        return categoryRepository.findByIdAndOwnerId(categoryId, ownerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Catégorie introuvable"));
     }
 
     private void requirePositiveId(Long id, String fieldName) {
         if (id == null || id <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'identifiant de la " + fieldName + " doit être un entier positif.");
+        }
     }
-}
+
+    private void validateOwnerId(String ownerId) {
+        if (ownerId == null || ownerId.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'identifiant de l'appareil (ownerId) est requis.");
+        }
+    }
 }

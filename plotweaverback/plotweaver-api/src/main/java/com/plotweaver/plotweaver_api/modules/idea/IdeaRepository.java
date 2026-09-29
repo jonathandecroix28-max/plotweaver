@@ -9,17 +9,20 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface IdeaRepository extends JpaRepository<Idea, Long> {
 
-    Optional<Idea> findByName(String name);
-    boolean existsByName(String name);
+    List<Idea> findByOwnerId(String ownerId);
 
-    List<Idea> findByBookId(Long bookId);
-    List<Idea> findByCategoryId(Long categoryId);
+    long countByCategoryId(Long categoryId);
 
-    long countById(Long id);
+    Optional<Idea> findByIdAndOwnerId(Long id, String ownerId);
 
-    Optional<Idea> findByNameAndBookId(String name, Long bookId);
-    boolean existsByBookIdAndName(Long bookId, String name);
-    boolean existsByBookIdAndNameAndIdNot(Long bookId, String name, Long id);
+    List<Idea> findByOwnerIdAndBookId(String ownerId, Long bookId);
 
-    boolean existsByBookIdAndCategoryId(Long bookId, Long categoryId);
+    List<Idea> findByOwnerIdAndCategoryId(String ownerId, Long categoryId);
+
+    boolean existsByOwnerIdAndBookIdAndName(String ownerId, Long bookId, String name);
+
+    boolean existsByOwnerIdAndBookIdAndNameAndIdNot(String ownerId, Long bookId, String name, Long id);
+    
+    boolean existsByOwnerIdAndBookIsNullAndName(String ownerId, String name);
+    boolean existsByOwnerIdAndBookIsNullAndNameAndIdNot(String ownerId, String name, Long id);
 }
