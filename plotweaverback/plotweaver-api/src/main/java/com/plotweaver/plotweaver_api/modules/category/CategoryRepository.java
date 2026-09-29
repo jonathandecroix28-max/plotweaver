@@ -9,26 +9,19 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
-    Optional<Category> findByName(String name);
+    List<Category> findByOwnerId(String ownerId);
 
-    boolean existsByName(String name);
+    Optional<Category> findByIdAndOwnerId(Long id, String ownerId);
 
-    List<Category> findByBookId(Long bookId);
+    Optional<Category> findByOwnerIdAndName(String ownerId, String name);
 
-    long countById(Long id);
+    boolean existsByOwnerIdAndName(String ownerId, String name);
 
-    Optional<Category> findByIdAndBookId(Long id, Long bookId);
+    boolean existsByOwnerIdAndNameAndIdNot(String ownerId, String name, Long id);
 
-    Optional<Category> findByNameAndBookId(String name, Long bookId);
+    boolean existsByOwnerIdAndColor(String ownerId, String color);
 
-    boolean existsByBookIdAndName(Long bookId, String name);
+    boolean existsByOwnerIdAndColorAndIdNot(String ownerId, String color, Long id);
 
-    boolean existsByBookIdAndNameAndIdNot(Long bookId, String name, Long id);
-
-    boolean existsByBookIdAndColor(Long bookId, String color);
-
-    boolean existsByBookIdAndColorAndIdNot(Long bookId, String color, Long id);
-
-    List<Category> findByColor(String color);
-
+    List<Category> findByOwnerIdAndColor(String ownerId, String color);
 }

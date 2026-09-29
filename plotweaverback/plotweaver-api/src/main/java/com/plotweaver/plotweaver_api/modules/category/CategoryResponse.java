@@ -10,7 +10,7 @@ import lombok.Getter;
 
 @Getter
 @Builder
-@Schema(name = "CategoryResponse", description = "Reponse API d'une catégorie")
+@Schema(name = "CategoryResponse", description = "Reponse API d'une catégorie globale")
 public class CategoryResponse {
 
     @Schema(description = "Identifiant de la catégorie", example = "1")
@@ -21,9 +21,6 @@ public class CategoryResponse {
 
     @Schema(description = "Couleur de la catégorie", example = "#FF5733")
     final private String color;
-
-    @Schema(description = "Identifiant du livre associé", example = "1")
-    final private Long bookId;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Schema(description = "Date de création", example = "2026-08-03T12:41:04")
