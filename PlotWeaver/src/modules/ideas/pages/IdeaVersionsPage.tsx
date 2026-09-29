@@ -11,23 +11,37 @@ type MergeFields = {
   description: boolean;
 };
 
+function splitLines(text: string): string[] {
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  return lines.length === 1 && lines[0] === '' ? [] : lines;
+}
+
+function displayLine(line: string): string {
+  return line;
+}
+
+type LineDiffKind = 'equal' | 'change' | 'current' | 'version';
+type LineChoice = 'current' | 'version';
+
 type LineDiffRow = {
   id: string;
-  kind: 'equal' | 'current' | 'version';
+  kind: LineDiffKind; // change = ligne modifiée (présente des deux côtés)
   currentIndex: number | null;
   versionIndex: number | null;
   currentLine: string;
   versionLine: string;
 };
 
-function splitLines(text: string): string[] {
-  const lines = text.replace(/\r\n/g, '\n').split('\n');
-  return lines.length === 1 && lines[0] === '' ? [] : lines;
-}
-
+/**
+ * Diff ligne par ligne (LCS). Les suppressions et ajouts consécutifs entre deux
+ * lignes identiques sont APPARIÉS : une ligne modifiée = UNE seule ligne "change"
+ * avec le texte actuel et le texte de la version en face l'un de l'autre.
+ * Seules les lignes réellement sans équivalent restent seules (côté absent).
+ */
 function buildLineDiff(currentText: string, versionText: string): LineDiffRow[] {
   const currentLines = splitLines(currentText);
   const versionLines = splitLines(versionText);
+  const same = (a: string, b: string) => a.trimEnd() === b.trimEnd();
   const rows: LineDiffRow[] = [];
 
   const dp: number[][] = Array.from({ length: currentLines.length + 1 }, () =>
@@ -36,16 +50,62 @@ function buildLineDiff(currentText: string, versionText: string): LineDiffRow[] 
 
   for (let i = currentLines.length - 1; i >= 0; i -= 1) {
     for (let j = versionLines.length - 1; j >= 0; j -= 1) {
-      dp[i][j] = currentLines[i] === versionLines[j]
+      dp[i][j] = same(currentLines[i], versionLines[j])
         ? dp[i + 1][j + 1] + 1
         : Math.max(dp[i + 1][j], dp[i][j + 1]);
     }
   }
 
+  let removed: number[] = []; // indices présents seulement côté actuel
+  let added: number[] = []; // indices présents seulement côté version
+
+  const flush = () => {
+    const pairs = Math.min(removed.length, added.length);
+
+    for (let k = 0; k < pairs; k += 1) {
+      const ci = removed[k];
+      const vi = added[k];
+      rows.push({
+        id: `chg-${ci}-${vi}`,
+        kind: 'change',
+        currentIndex: ci,
+        versionIndex: vi,
+        currentLine: currentLines[ci],
+        versionLine: versionLines[vi],
+      });
+    }
+    for (let k = pairs; k < removed.length; k += 1) {
+      const ci = removed[k];
+      rows.push({
+        id: `cur-${ci}`,
+        kind: 'current',
+        currentIndex: ci,
+        versionIndex: null,
+        currentLine: currentLines[ci],
+        versionLine: '',
+      });
+    }
+    for (let k = pairs; k < added.length; k += 1) {
+      const vi = added[k];
+      rows.push({
+        id: `ver-${vi}`,
+        kind: 'version',
+        currentIndex: null,
+        versionIndex: vi,
+        currentLine: '',
+        versionLine: versionLines[vi],
+      });
+    }
+
+    removed = [];
+    added = [];
+  };
+
   let i = 0;
   let j = 0;
   while (i < currentLines.length && j < versionLines.length) {
-    if (currentLines[i] === versionLines[j]) {
+    if (same(currentLines[i], versionLines[j])) {
+      flush();
       rows.push({
         id: `eq-${i}-${j}`,
         kind: 'equal',
@@ -56,75 +116,85 @@ function buildLineDiff(currentText: string, versionText: string): LineDiffRow[] 
       });
       i += 1;
       j += 1;
-      continue;
-    }
-
-    if (dp[i + 1][j] >= dp[i][j + 1]) {
-      rows.push({
-        id: `cur-${i}-${j}`,
-        kind: 'current',
-        currentIndex: i,
-        versionIndex: null,
-        currentLine: currentLines[i],
-        versionLine: '',
-      });
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      removed.push(i);
       i += 1;
     } else {
-      rows.push({
-        id: `ver-${i}-${j}`,
-        kind: 'version',
-        currentIndex: null,
-        versionIndex: j,
-        currentLine: '',
-        versionLine: versionLines[j],
-      });
+      added.push(j);
       j += 1;
     }
   }
 
   while (i < currentLines.length) {
-    rows.push({
-      id: `cur-${i}-${j}`,
-      kind: 'current',
-      currentIndex: i,
-      versionIndex: null,
-      currentLine: currentLines[i],
-      versionLine: '',
-    });
+    removed.push(i);
     i += 1;
   }
-
   while (j < versionLines.length) {
-    rows.push({
-      id: `ver-${i}-${j}`,
-      kind: 'version',
-      currentIndex: null,
-      versionIndex: j,
-      currentLine: '',
-      versionLine: versionLines[j],
-    });
+    added.push(j);
     j += 1;
   }
+  flush();
 
   return rows;
 }
 
-function defaultLineChoices(rows: LineDiffRow[]): Record<string, 'current' | 'version'> {
-  return rows.reduce<Record<string, 'current' | 'version'>>((acc, row) => {
-    acc[row.id] = row.kind === 'version' ? 'version' : 'current';
+// Par défaut : on garde l'actuel, et on prend les lignes qui n'existent que dans la version
+function defaultChoice(row: LineDiffRow): LineChoice {
+  return row.kind === 'version' ? 'version' : 'current';
+}
+
+function defaultLineChoices(rows: LineDiffRow[]): Record<string, LineChoice> {
+  return rows.reduce<Record<string, LineChoice>>((acc, row) => {
+    acc[row.id] = defaultChoice(row);
     return acc;
   }, {});
 }
 
-function composeLineMerge(rows: LineDiffRow[], choices: Record<string, 'current' | 'version'>): string {
+function composeLineMerge(rows: LineDiffRow[], choices: Record<string, LineChoice>): string {
   return rows
     .flatMap((row) => {
-      const choice = choices[row.id] ?? (row.kind === 'version' ? 'version' : 'current');
       if (row.kind === 'equal') return [row.currentLine];
-      if (choice === 'version') return row.kind === 'version' ? [row.versionLine] : [];
-      return row.kind === 'current' ? [row.currentLine] : [];
+      const choice = choices[row.id] ?? defaultChoice(row);
+      if (choice === 'version') return row.kind === 'current' ? [] : [row.versionLine];
+      return row.kind === 'version' ? [] : [row.currentLine];
     })
     .join('\n');
+}
+
+function choiceLabels(kind: LineDiffKind): { current: string; version: string } {
+  if (kind === 'current') return { current: 'Garder', version: 'Retirer' };
+  if (kind === 'version') return { current: 'Ignorer', version: 'Ajouter' };
+  return { current: 'Garder actuel', version: 'Garder version' };
+}
+
+function choiceSummary(kind: LineDiffKind, choice: LineChoice): string {
+  if (kind === 'current') return choice === 'current' ? 'ligne conservée' : 'ligne retirée';
+  if (kind === 'version') return choice === 'version' ? 'ligne ajoutée' : 'ligne ignorée';
+  return choice === 'version' ? 'version' : 'actuel';
+}
+
+function lineNumberOf(row: LineDiffRow): string {
+  const c = row.currentIndex != null ? row.currentIndex + 1 : null;
+  const v = row.versionIndex != null ? row.versionIndex + 1 : null;
+  if (c != null && v != null && c !== v) return `${c} / ${v}`;
+  return String(c ?? v ?? '-');
+}
+
+function isSideMissing(row: LineDiffRow, side: LineChoice): boolean {
+  return side === 'current' ? row.kind === 'version' : row.kind === 'current';
+}
+
+// Fond rouge = ce qui disparaît / change côté actuel, vert = ce qui apparaît côté version
+function sideBg(row: LineDiffRow, side: LineChoice): string {
+  if (row.kind === 'equal' || isSideMissing(row, side)) return '';
+  return side === 'current' ? 'bg-red-950/25' : 'bg-emerald-950/25';
+}
+
+function renderSide(row: LineDiffRow, side: LineChoice) {
+  if (isSideMissing(row, side)) return <span className="italic text-amber-200/30">absente</span>;
+  const line = side === 'current' ? row.currentLine : row.versionLine;
+  if (line.trim() === '') return <span className="italic text-amber-200/30">(ligne vide)</span>;
+  return displayLine(line);
 }
 
 export function IdeaVersionsPage() {
@@ -283,35 +353,33 @@ export function IdeaVersionsPage() {
   );
 
   const renderLineChoice = (row: LineDiffRow) => {
-    const selectedChoice = descriptionLineChoices[row.id] ?? (row.kind === 'version' ? 'version' : 'current');
-    const activeLine = selectedChoice === 'version' ? row.versionLine : row.currentLine;
-
     if (row.kind === 'equal') return <span className="text-xs text-emerald-300">Identique</span>;
+
+    const selectedChoice = descriptionLineChoices[row.id] ?? defaultChoice(row);
+    const labels = choiceLabels(row.kind);
+    const activeLine = selectedChoice === 'version' ? row.versionLine : row.currentLine;
 
     return (
       <div className="flex flex-col gap-2">
-        <div className="text-xs text-amber-200/50">Garde : {selectedChoice === 'version' ? 'version' : 'actuel'}</div>
+        <div className="text-xs text-amber-200/50">Résultat : {choiceSummary(row.kind, selectedChoice)}</div>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setDescriptionLineChoices((c) => ({ ...c, [row.id]: 'current' }))}
             className={choiceBtn(selectedChoice === 'current')}
           >
-            Garder actuel
+            {labels.current}
           </button>
           <button
             onClick={() => setDescriptionLineChoices((c) => ({ ...c, [row.id]: 'version' }))}
             className={choiceBtn(selectedChoice === 'version')}
           >
-            Garder version
+            {labels.version}
           </button>
         </div>
         <div className="text-[11px] text-amber-200/40 whitespace-pre-wrap break-words">{activeLine || '—'}</div>
       </div>
     );
   };
-
-  const lineNumberOf = (row: LineDiffRow) =>
-    row.currentIndex != null ? row.currentIndex + 1 : row.versionIndex != null ? row.versionIndex + 1 : '-';
 
   const currentCard = { label: 'Idée actuelle', name: idea.name, description: idea.description };
   const versionCard = versionToCompare
@@ -542,16 +610,16 @@ export function IdeaVersionsPage() {
                             {row.kind === 'equal' && <span className="text-emerald-300">Identique</span>}
                           </div>
                           {row.kind === 'equal' ? (
-                            <div className="text-sm text-amber-100/80 whitespace-pre-wrap break-words">{row.currentLine || '—'}</div>
+                            <div className="text-sm text-amber-100/80 whitespace-pre-wrap break-words">{renderSide(row, 'current')}</div>
                           ) : (
                             <>
                               <div>
-                                <div className="text-[10px] uppercase tracking-widest text-amber-200/40">Actuel</div>
-                                <div className="text-sm text-amber-100/80 whitespace-pre-wrap break-words">{row.currentLine || '—'}</div>
+                                <div className="text-[10px] uppercase tracking-widest text-amber-200/40 mb-0.5">Actuel</div>
+                                <div className={`rounded px-2 py-1 text-sm text-amber-100/80 whitespace-pre-wrap break-words ${sideBg(row, 'current')}`}>{renderSide(row, 'current')}</div>
                               </div>
                               <div>
-                                <div className="text-[10px] uppercase tracking-widest text-amber-200/40">Version</div>
-                                <div className="text-sm text-amber-100/80 whitespace-pre-wrap break-words">{row.versionLine || '—'}</div>
+                                <div className="text-[10px] uppercase tracking-widest text-amber-200/40 mb-0.5">Version</div>
+                                <div className={`rounded px-2 py-1 text-sm text-amber-100/80 whitespace-pre-wrap break-words ${sideBg(row, 'version')}`}>{renderSide(row, 'version')}</div>
                               </div>
                               {renderLineChoice(row)}
                             </>
@@ -574,9 +642,9 @@ export function IdeaVersionsPage() {
                         <tbody className="divide-y divide-amber-900/10">
                           {descriptionDiffRows.map((row) => (
                             <tr key={row.id} className={row.kind === 'equal' ? 'bg-neutral-950/35' : 'bg-neutral-950/55'}>
-                              <td className="px-4 py-3 align-top text-xs text-amber-200/40">{lineNumberOf(row)}</td>
-                              <td className="px-4 py-3 align-top whitespace-pre-wrap text-sm text-amber-100/80">{row.currentLine || '—'}</td>
-                              <td className="px-4 py-3 align-top whitespace-pre-wrap text-sm text-amber-100/80">{row.versionLine || '—'}</td>
+                              <td className="px-4 py-3 align-top text-xs text-amber-200/40 whitespace-nowrap">{lineNumberOf(row)}</td>
+                              <td className={`px-4 py-3 align-top whitespace-pre-wrap break-words text-sm text-amber-100/80 ${sideBg(row, 'current')}`}>{renderSide(row, 'current')}</td>
+                              <td className={`px-4 py-3 align-top whitespace-pre-wrap break-words text-sm text-amber-100/80 ${sideBg(row, 'version')}`}>{renderSide(row, 'version')}</td>
                               <td className="px-4 py-3 align-top">{renderLineChoice(row)}</td>
                             </tr>
                           ))}
