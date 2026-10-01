@@ -322,7 +322,15 @@ export function IdeaVersionsPage() {
     );
   }
 
-  if (error || !idea) return null;
+  if (error || !idea) {
+    return (
+      <div className="min-h-full bg-[#1c1411] text-[#fcf9f2] font-serif px-4 py-20">
+        <div className="max-w-xl mx-auto rounded-2xl border border-red-900/30 bg-red-950/20 p-6 text-center text-red-200">
+          {error ?? 'Cette idée n’existe plus ou est introuvable.'}
+        </div>
+      </div>
+    );
+  }
 
   const btnBase = 'rounded-lg border text-xs font-medium transition-colors cursor-pointer';
   const choiceBtn = (active: boolean) =>

@@ -380,7 +380,7 @@ export function ExportPage() {
               </div>
 
               {showPreview &&
-                (previewHtml ? (
+                (book && selectedChapters.length > 0 && previewHtml ? (
                   <iframe
                     title="Aperçu de l’export"
                     sandbox=""
@@ -389,7 +389,13 @@ export function ExportPage() {
                   />
                 ) : (
                   <div className="rounded-xl border border-dashed border-amber-900/30 py-16 text-center text-sm text-amber-200/50">
-                    {bookLoading ? 'Chargement...' : 'Rien à afficher pour le moment.'}
+                    {bookLoading
+                      ? 'Chargement...'
+                      : !book
+                        ? 'Choisis un roman pour prévisualiser l’export.'
+                        : selectedChapters.length === 0
+                          ? 'Sélectionne au moins un chapitre pour générer l’aperçu.'
+                          : 'Rien à afficher pour le moment.'}
                   </div>
                 ))}
             </section>

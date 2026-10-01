@@ -305,7 +305,15 @@ export function ChapterVersionsPage() {
     );
   }
 
-  if (error || !chapter) return null;
+  if (error || !chapter) {
+    return (
+      <div className="min-h-full bg-[#1c1411] text-[#fcf9f2] font-serif px-4 py-20">
+        <div className="max-w-xl mx-auto rounded-2xl border border-red-900/30 bg-red-950/20 p-6 text-center text-red-200">
+          {error ?? 'Ce chapitre n’existe plus ou est introuvable.'}
+        </div>
+      </div>
+    );
+  }
 
   const renderLineChoice = (row: LineDiffRow) => {
     if (row.kind === 'equal') return <span className="text-xs text-emerald-300">Identique</span>;
