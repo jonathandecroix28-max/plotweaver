@@ -12,8 +12,6 @@ type MergeFields = {
   content: boolean;
 };
 
-// Le contenu d'un chapitre est du HTML : on le découpe en blocs (paragraphes, titres,
-// éléments de liste...) plutôt qu'en lignes brutes, sinon tout tient sur une seule "ligne".
 const BLOCK_END = /(<\/(?:p|h[1-6]|li|blockquote|pre)>|<hr\s*\/?>)/gi;
 
 function splitLines(text: string): string[] {
@@ -24,7 +22,6 @@ function splitLines(text: string): string[] {
   return result.length === 1 && result[0] === '' ? [] : result;
 }
 
-// Affichage lisible d'un bloc HTML (sans balises) ; on retombe sur le HTML brut si pas de texte (image, hr...)
 function displayLine(line: string): string {
   if (!/<[a-z][^>]*>/i.test(line)) return line;
   const text = new DOMParser().parseFromString(line, 'text/html').body.textContent?.trim() ?? '';
@@ -36,7 +33,7 @@ type LineChoice = 'current' | 'version';
 
 type LineDiffRow = {
   id: string;
-  kind: LineDiffKind; // change = ligne modifiée (présente des deux côtés)
+  kind: LineDiffKind;
   currentIndex: number | null;
   versionIndex: number | null;
   currentLine: string;
@@ -67,8 +64,8 @@ function buildLineDiff(currentText: string, versionText: string): LineDiffRow[] 
     }
   }
 
-  let removed: number[] = []; // indices présents seulement côté actuel
-  let added: number[] = []; // indices présents seulement côté version
+  let removed: number[] = []; 
+  let added: number[] = [];
 
   const flush = () => {
     const pairs = Math.min(removed.length, added.length);
@@ -149,7 +146,6 @@ function buildLineDiff(currentText: string, versionText: string): LineDiffRow[] 
   return rows;
 }
 
-// Par défaut : on garde l'actuel, et on prend les lignes qui n'existent que dans la version
 function defaultChoice(row: LineDiffRow): LineChoice {
   return row.kind === 'version' ? 'version' : 'current';
 }
@@ -195,7 +191,6 @@ function isSideMissing(row: LineDiffRow, side: LineChoice): boolean {
   return side === 'current' ? row.kind === 'version' : row.kind === 'current';
 }
 
-// Fond rouge = ce qui disparaît / change côté actuel, vert = ce qui apparaît côté version
 function sideBg(row: LineDiffRow, side: LineChoice): string {
   if (row.kind === 'equal' || isSideMissing(row, side)) return '';
   return side === 'current' ? 'bg-red-950/25' : 'bg-emerald-950/25';
