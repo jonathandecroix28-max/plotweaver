@@ -1,25 +1,26 @@
-import { useState } from "react";
+//import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { offlineBookService } from "../services/offlineBookService";
-import { offlineIdeaService } from "../services/offlineIdeaService";
-import { offlineChapterService } from "../services/offlineChapterService";
-import { offlineCategoryService } from "../services/offlineCategoryService";
+//import { offlineBookService } from "../services/offlineBookService";
+//import { offlineIdeaService } from "../services/offlineIdeaService";
+//import { offlineChapterService } from "../services/offlineChapterService";
+//import { offlineCategoryService } from "../services/offlineCategoryService";
 import { ThemeToggle } from "./themes/ThemeToggle";
 
-type NavKey = "books" | "ideas" | "versions";
+type NavKey = "books" | "ideas" | "versions" | "export";
 
 const NAV_ITEMS: { key: NavKey; label: string; short: string; icon: string; path: string }[] = [
   { key: "books", label: "Romans", short: "Romans", icon: "📚", path: "/books" },
   { key: "ideas", label: "Carnet d'idées", short: "Idées", icon: "💡", path: "/ideas" },
   { key: "versions", label: "Versions", short: "Versions", icon: "🗂️", path: "/versions" },
+  { key: "export", label: "Exporter", short: "Export", icon: "📤", path: "/export" },
 ];
 
 export function Navbar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const [syncing, setSyncing] = useState(false);
+  //const [syncing, setSyncing] = useState(false);
 
-  const handleSync = async () => {
+  /*const handleSync = async () => {
     if (syncing) return;
     setSyncing(true);
     try {
@@ -35,18 +36,18 @@ export function Navbar() {
       alert(error.message || "Erreur lors de la synchronisation.");
       setSyncing(false);
     }
-  };
+  };*/
 
-  // Les pages de versions (/versions, /ideas/:id/versions, /books/.../versions)
-  // sont rattachées à l'onglet "Versions"
+
   const inVersions = pathname.includes("/versions");
   const active: Record<NavKey, boolean> = {
     versions: inVersions,
+    export: pathname.startsWith("/export"),
     ideas: pathname.startsWith("/ideas") && !inVersions,
     books: (pathname.startsWith("/books") || pathname === "/") && !inVersions,
   };
 
-  const syncIcon = (
+ /* const syncIcon = (
     <span
       className={`inline-block transition-transform duration-500 ${
         syncing ? "animate-spin" : "group-hover:rotate-180"
@@ -54,9 +55,9 @@ export function Navbar() {
     >
       🔄
     </span>
-  );
+  );*/
 
-  const DonateButton = (
+  /*const DonateButton = (
     <button
       type="button"
       onClick={() => navigate("/donate")}
@@ -67,7 +68,7 @@ export function Navbar() {
       <span aria-hidden>☕</span>
       <span className="hidden lg:inline">Soutenir</span>
     </button>
-  );
+  );*/
 
   const Logo = (
     <button
@@ -116,20 +117,20 @@ export function Navbar() {
           </ul>
 
           <div className="ml-auto flex items-center gap-2">
-            {DonateButton}
+            {/* {DonateButton} */}
             <ThemeToggle />
-            <button
+            {/* <button
               type="button"
               onClick={handleSync}
               disabled={syncing}
               title="Envoyer toutes les données locales vers le serveur"
               className="group text-xs bg-amber-950/80 hover:bg-amber-900 disabled:opacity-60 text-amber-200 px-3.5 py-2 rounded-xl border border-amber-800/50 font-medium transition cursor-pointer flex items-center gap-2 shadow-xs"
             >
-              {syncIcon}
+              {/* {syncIcon}
               <span className="hidden md:inline">
                 {syncing ? "Synchronisation…" : "Synchroniser"}
               </span>
-            </button>
+            </button> */}
           </div>
         </nav>
       </header>
@@ -139,7 +140,7 @@ export function Navbar() {
         <div className="px-4 h-14 flex items-center justify-between gap-3">
           {Logo}
           <div className="flex items-center gap-2 shrink-0">
-            {DonateButton}
+            {/* {DonateButton} */}
             <ThemeToggle />
           </div>
         </div>
@@ -150,7 +151,7 @@ export function Navbar() {
         aria-label="Navigation principale"
         className="sm:hidden fixed bottom-0 inset-x-0 z-50 bg-[#1c1411]/95 backdrop-blur border-t border-amber-900/40 shadow-[0_-4px_12px_rgba(0,0,0,0.25)] pb-[env(safe-area-inset-bottom)]"
       >
-        <ul className="grid grid-cols-4">
+        <ul className="grid grid-cols-5">
           {NAV_ITEMS.map((item) => (
             <li key={item.key}>
               <button
@@ -175,7 +176,7 @@ export function Navbar() {
           ))}
 
           <li>
-            <button
+            {/* <button
               type="button"
               onClick={handleSync}
               disabled={syncing}
@@ -183,10 +184,10 @@ export function Navbar() {
               className="group w-full h-16 flex flex-col items-center justify-center gap-1 text-[11px] font-serif font-medium text-amber-200/50 active:text-amber-100 disabled:opacity-60 transition cursor-pointer"
             >
               <span className="text-xl leading-none" aria-hidden>
-                {syncIcon}
+                {/* {syncIcon}
               </span>
               <span>{syncing ? "Sync…" : "Sync"}</span>
-            </button>
+            </button> */}
           </li>
         </ul>
       </nav>
