@@ -21,7 +21,7 @@ const FEATURES = [
   {
     icon: '📴',
     title: 'Hors ligne d’abord',
-    text: 'Écrivez partout, même sans connexion. Vous synchronisez quand vous le décidez.',
+    text: 'Écrivez partout, même sans connexion. Vos textes sont stockés localement et vous appartiennent.',
   },
   {
     icon: '📤',
@@ -191,12 +191,12 @@ export function LandingPage() {
             >
               Ouvrir l’application
             </button>
-            <Link
+            {/* <Link
               to="/donate"
               className="px-7 py-3.5 rounded-2xl text-yellow-200 bg-yellow-400/10 hover:bg-yellow-400/20 border border-yellow-500/30 font-medium transition"
             >
               ☕ Soutenir le projet
-            </Link>
+            </Link> */}
           </div>
         </div>
       </section>
