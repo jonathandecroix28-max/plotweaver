@@ -156,7 +156,7 @@ export function ExportPage() {
       try {
         localStorage.setItem(AUTHOR_KEY, author.trim());
       } catch {
-        /* stockage indisponible : on ignore */
+        // Ignorer les erreurs de stockage local
       }
 
       await exportBook(
@@ -185,8 +185,8 @@ export function ExportPage() {
 
   /* ───── Rendu ───── */
   return (
-    <div className="min-h-full bg-[#1c1411] text-[#fcf9f2] font-serif overflow-x-hidden">
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6">
+    <div className="grow bg-[#1c1411] text-[#fcf9f2] font-serif overflow-x-hidden">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6">
         <header>
           <p className="text-[11px] sm:text-xs uppercase tracking-[0.28em] text-amber-200/40 mb-1 sm:mb-2">Publication</p>
           <h1 className="text-2xl sm:text-4xl font-bold text-amber-100">Exporter un roman</h1>
@@ -401,7 +401,7 @@ export function ExportPage() {
             </section>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }
