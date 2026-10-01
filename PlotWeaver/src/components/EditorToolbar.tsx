@@ -28,20 +28,30 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
 
   const chain = () => editor.chain().focus();
 
-  const btnClass = (isActive: boolean) =>
-    `px-3 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer flex items-center justify-center min-w-[32px] touch-target ${
-      isActive ? 'bg-amber-900 text-amber-50 shadow-xs' : 'bg-amber-950/5 hover:bg-amber-950/10 text-amber-950'
-    }`;
+  // Bouton normal (clair)
+  const baseBtn =
+    'px-3 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer flex items-center justify-center min-w-[32px] touch-target bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-200';
+
+  // Bouton actif (clair mais plus marqué)
+  const activeBtn =
+    'px-3 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer flex items-center justify-center min-w-[32px] touch-target bg-amber-300 text-amber-950 border border-amber-400 shadow-xs';
+
+  const btnClass = (isActive: boolean) => (isActive ? activeBtn : baseBtn);
+
+  // Boutons sans état actif (undo, redo)
+  const plainBtn = `${baseBtn} disabled:opacity-40 disabled:cursor-not-allowed`;
+
+  const separator = <span className="text-amber-300 mx-1">|</span>;
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 pb-4 mb-4 border-b border-amber-900/10 text-amber-950 bg-amber-950/2 p-2 rounded-lg overflow-x-auto">
-      
-      {/*Historique*/}
+    <div className="flex flex-wrap items-center gap-1.5 pb-4 mb-4 border-b border-amber-200 text-amber-950 bg-amber-50 p-2 rounded-lg overflow-x-auto">
+
+      {/* Historique */}
       <button
         type="button"
         onClick={() => chain().undo().run()}
         disabled={!editor.can().undo()}
-        className="px-2.5 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer bg-amber-950/5 hover:bg-amber-950/10 disabled:opacity-30 disabled:cursor-not-allowed touch-target"
+        className={plainBtn}
         title="Annuler (Ctrl+Z)"
       >
         ↺
@@ -50,15 +60,15 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         type="button"
         onClick={() => chain().redo().run()}
         disabled={!editor.can().redo()}
-        className="px-2.5 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer bg-amber-950/5 hover:bg-amber-950/10 disabled:opacity-30 disabled:cursor-not-allowed touch-target"
+        className={plainBtn}
         title="Rétablir (Ctrl+Y)"
       >
         ↻
       </button>
 
-      <span className="text-amber-900/20 mx-1">|</span>
+      {separator}
 
-      {/*Style de texte*/}
+      {/* Style de texte */}
       <button type="button" onClick={() => chain().toggleBold().run()} className={btnClass(editor.isActive('bold'))} title="Gras">
         <span className="font-bold">G</span>
       </button>
@@ -72,9 +82,9 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <span className="font-mono text-[11px]">&lt;/&gt;</span>
       </button>
 
-      <span className="text-amber-900/20 mx-1">|</span>
+      {separator}
 
-      {/*Alignements*/}
+      {/* Alignements */}
       <button type="button" onClick={() => chain().setTextAlign('left').run()} className={btnClass(editor.isActive({ textAlign: 'left' }))} title="Aligner à gauche">
         ≡
       </button>
@@ -88,9 +98,9 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         ☰
       </button>
 
-      <span className="text-amber-900/20 mx-1">|</span>
+      {separator}
 
-      {/*Titres*/}
+      {/* Titres */}
       <button type="button" onClick={() => chain().toggleHeading({ level: 1 }).run()} className={btnClass(editor.isActive('heading', { level: 1 }))} title="Titre 1">
         H1
       </button>
@@ -104,9 +114,9 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         ¶
       </button>
 
-      <span className="text-amber-900/20 mx-1">|</span>
+      {separator}
 
-      {/*Listes & Citations*/}
+      {/* Listes & Citations */}
       <button type="button" onClick={() => chain().toggleBulletList().run()} className={btnClass(editor.isActive('bulletList'))} title="Liste à puces">
         • List
       </button>
@@ -116,7 +126,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       <button type="button" onClick={() => chain().toggleBlockquote().run()} className={btnClass(editor.isActive('blockquote'))} title="Citation">
         “ ”
       </button>
-      <button type="button" onClick={() => chain().setHorizontalRule().run()} className="px-3 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer bg-amber-950/5 hover:bg-amber-950/10" title="Séparateur">
+      <button type="button" onClick={() => chain().setHorizontalRule().run()} className={baseBtn} title="Séparateur">
         ―
       </button>
 

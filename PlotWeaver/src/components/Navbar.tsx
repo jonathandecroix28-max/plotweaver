@@ -151,7 +151,7 @@ export function Navbar() {
         aria-label="Navigation principale"
         className="sm:hidden fixed bottom-0 inset-x-0 z-50 bg-[#1c1411]/95 backdrop-blur border-t border-amber-900/40 shadow-[0_-4px_12px_rgba(0,0,0,0.25)] pb-[env(safe-area-inset-bottom)]"
       >
-        <ul className="grid grid-cols-5">
+        <ul className="grid grid-cols-4">
           {NAV_ITEMS.map((item) => (
             <li key={item.key}>
               <button
