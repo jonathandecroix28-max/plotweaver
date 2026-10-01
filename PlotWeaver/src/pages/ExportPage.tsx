@@ -56,7 +56,6 @@ export function ExportPage() {
       .then((list) => {
         if (cancelled) return;
         setBooks(list);
-        // Sans roman choisi dans l'URL, on prend le premier
         if (!bookIdParam && list.length > 0) {
           setSearchParams({ book: String(list[0].id) }, { replace: true });
         }
@@ -72,7 +71,6 @@ export function ExportPage() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ───── Chargement du roman choisi (avec ses chapitres) ───── */
@@ -107,7 +105,6 @@ export function ExportPage() {
     };
   }, [bookIdParam]);
 
-  // On attend la fin de la saisie avant de reconstruire l'aperçu
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedAuthor(author), 300);
     return () => clearTimeout(timer);
