@@ -10,21 +10,26 @@ import { NotFound } from './pages/404';
 import { IdeasPage } from './modules/ideas/pages/IdeasPage';
 import { IdeaVersionsPage } from './modules/ideas/pages/IdeaVersionsPage';
 import VersionsHubPage from './pages/VersionsHubPage';
-import DonatePage from './pages/DonatePage';
+// import DonatePage from './pages/DonatePage';
+import ExportPage from './pages/ExportPage';
+//import { TermsPage } from './pages/TermsPage';
+//import { PrivacyPage } from './pages/PrivacyPage';
+//import { SupportPage } from './pages/SupportPage';
 
 function AppContent() {
   const location = useLocation();
-  const isLandingPage = location.pathname === '/';
+  
+  const hideNavbar = ['/', '/terms', '/privacy', '/support'].includes(location.pathname);
 
   return (
     <div className="min-h-dvh bg-[#fcf9f2] flex flex-col">
-  {!isLandingPage && <Navbar />}
+      {!hideNavbar && <Navbar />}
 
-  <main
-    className={`grow flex flex-col ${
-      !isLandingPage ? 'pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0' : ''
-    }`}
-  >
+      <main
+        className={`grow flex flex-col ${
+          !hideNavbar ? 'pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0' : ''
+        }`}
+      >
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/books" element={<BooksPage />} />
@@ -34,10 +39,14 @@ function AppContent() {
           <Route path="/books/:bookId/chapters/:chapterId/versions/:versionId" element={<ChapterVersionsPage />} />
           <Route path="/books/:bookId/chapters/:chapterId/read" element={<ChapterReadPage />} />
           <Route path="/ideas" element={<IdeasPage />} />
-          <Route path="/donate" element={<DonatePage />} />
+          {/* <Route path="/donate" element={<DonatePage />} /> */}
           <Route path="/versions" element={<VersionsHubPage />} />
           <Route path="/ideas/:ideaId/versions" element={<IdeaVersionsPage />} />
           <Route path="/ideas/:ideaId/versions/:versionId" element={<IdeaVersionsPage />} />
+          <Route path="/export" element={<ExportPage />} />
+          {/* <Route path="/terms" element={<TermsPage />} /> */}
+          {/* <Route path="/privacy" element={<PrivacyPage />} /> */}
+          {/* <Route path="/support" element={<SupportPage />} /> */}
 
           {/* Route 404 */}
           <Route path="/404" element={<NotFound />} />
