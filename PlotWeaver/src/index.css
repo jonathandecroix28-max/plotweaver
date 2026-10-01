@@ -19,6 +19,8 @@ body {
   overflow-x: hidden;
 }
 
+html, body, #root { min-height: 100%; background-color: #1c1411; }
+
 img,
 video,
 svg {
@@ -71,7 +73,7 @@ code,
   }
 }
 
-/* --- AMBIANCE LEVER DE SOLEIL (Mode Clair / Sunrise) --- */
+/* --- Lever de soleil (Mode Clair / Sunrise) --- */
 html.sunrise-mode body {
   background-color: #fffaf0 !important; 
   color: #3a2518 !important;
