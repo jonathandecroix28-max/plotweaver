@@ -28,17 +28,14 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
 
   const chain = () => editor.chain().focus();
 
-  // Bouton normal (clair)
   const baseBtn =
     'px-3 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer flex items-center justify-center min-w-[32px] touch-target bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-200';
 
-  // Bouton actif (clair mais plus marqué)
   const activeBtn =
     'px-3 py-1.5 rounded text-xs font-sans font-medium transition-colors cursor-pointer flex items-center justify-center min-w-[32px] touch-target bg-amber-300 text-amber-950 border border-amber-400 shadow-xs';
 
   const btnClass = (isActive: boolean) => (isActive ? activeBtn : baseBtn);
 
-  // Boutons sans état actif (undo, redo)
   const plainBtn = `${baseBtn} disabled:opacity-40 disabled:cursor-not-allowed`;
 
   const separator = <span className="text-amber-300 mx-1">|</span>;
